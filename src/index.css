@@ -1,19 +1,18 @@
 :root {
-  /* Pulled from the reference Word Hunt recording */
-  --bg-green: #557f4e;
-  --bg-green-2: #4f7748;
-  --board-panel: #5d9a5b;
-  --board-rim: #8ed18e;
-  --board-rim-dark: #4a8a4e;
-  --tile-top: #f3c47e;
-  --tile-bottom: #e3a85f;
-  --tile-bevel: #c2854a;
-  --tile-text: #3d2b16;
-  --tile-selected: #ffffff;
-  --path-red: #d6342a;
-  --start-green: #6dcb6c;
-  --start-green-dark: #4ea84d;
-  --header-text: #233a22;
+  --bg-dark: #0c0c10;
+  --bg-dark-2: #111116;
+  --board-panel: #16171e;
+  --board-rim: #3c3f52;
+  --board-rim-dark: #1a1b24;
+  --tile-top: #545a6a;
+  --tile-bottom: #363b48;
+  --tile-bevel: #252830;
+  --tile-text: #dde3f0;
+  --tile-selected: #4a8fd4;
+  --path-red: #7ab8f5;
+  --start-green: #4a8fd4;
+  --start-green-dark: #2d6aa8;
+  --header-text: #c8d4ea;
 
   font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -34,19 +33,17 @@ body {
 }
 
 body {
-  /* Lock to the viewport: no page scroll or rubber-banding on mobile. */
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
-  background-color: var(--bg-green);
-  /* Diagonal two-tone green stripes, like the reference background */
+  background-color: var(--bg-dark);
   background-image: repeating-linear-gradient(
     45deg,
-    #5a8753 0 14px,
-    #547e4d 14px 28px
+    #0e0e14 0 14px,
+    #111118 14px 28px
   );
   background-attachment: fixed;
 }
