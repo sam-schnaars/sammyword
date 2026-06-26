@@ -245,14 +245,20 @@
   color: #1c1c1c;
   border-radius: 22px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-  padding: 28px 26px 30px;
+  padding: 24px 24px 26px;
   width: 100%;
   max-width: 340px;
+  /* Pin the card to the viewport; if its content is taller, it scrolls inside
+     itself (frame stays put) rather than scrolling the whole screen. */
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .card h1 {
@@ -499,6 +505,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Scroll within the leaderboard box rather than growing the card. */
+  max-height: 196px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .lb-list li {
@@ -631,8 +641,9 @@
 
 .found-list {
   width: 100%;
-  max-height: 180px;
+  max-height: 132px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
