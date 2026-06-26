@@ -1,0 +1,45 @@
+name: SammyWord
+options:
+  bundleIdPrefix: com.samschnaars
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    # We supply our own Info.plist files, so don't auto-generate them.
+    GENERATE_INFOPLIST_FILE: NO
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  # ---- Container iOS app (required host for the iMessage extension) ----
+  SammyWord:
+    type: application
+    platform: iOS
+    sources:
+      - SammyWord
+    settings:
+      base:
+        INFOPLIST_FILE: SammyWord/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: SammyWordMessages
+        embed: true
+
+  # ---- iMessage extension (the game lives here) ----
+  SammyWordMessages:
+    type: app-extension.messages
+    platform: iOS
+    sources:
+      - SammyWordMessages
+    settings:
+      base:
+        INFOPLIST_FILE: SammyWordMessages/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord.SammyWordMessages
+        ASSETCATALOG_COMPILER_APPICON_NAME: "iMessage App Icon"
