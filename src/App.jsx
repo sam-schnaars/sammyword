@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import {
+  MAPS,
   ROUND_SECONDS,
   areAdjacent,
+  boardFromLetters,
+  boardLetters,
   generateBoard,
+  getMap,
   scoreForWord,
 } from './board.js'
 import {
@@ -22,14 +26,16 @@ const pad4 = (n) => String(n).padStart(4, '0')
 export default function App() {
   const [phase, setPhase] = useState('start') // 'start' | 'playing' | 'over'
   const [dictionary, setDictionary] = useState(null)
-  const [board, setBoard] = useState(() => generateBoard())
+  const [mapId, setMapId] = useState('classic') // selected on the home screen
+  const [map, setMap] = useState(() => getMap('classic')) // map of the active board
+  const [board, setBoard] = useState(() => generateBoard(getMap('classic')))
   const [selection, setSelection] = useState([])
   const [found, setFound] = useState([]) // [{ word, points }]
   const [score, setScore] = useState(0)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [pop, setPop] = useState(null) // { key, word, points }
 
-  // Challenge flow: a friend's board + score parsed from the URL, if any.
+  // Challenge flow: a friend's map + letters + score parsed from the URL, if any.
   const [challenge, setChallenge] = useState(() => readChallengeFromUrl())
   const [name, setName] = useState(() => loadName())
   const [shareMsg, setShareMsg] = useState('')
@@ -70,18 +76,22 @@ export default function App() {
     setShareMsg('')
   }
 
-  // Start a brand-new random game (clears any incoming challenge).
+  // Start a brand-new random game on the selected map (clears any challenge).
   function newGame() {
+    const m = getMap(mapId)
     setChallenge(null)
     clearChallengeFromUrl()
-    setBoard(generateBoard())
+    setMap(m)
+    setBoard(generateBoard(m))
     resetRound()
     setPhase('playing')
   }
 
-  // Accept a friend's challenge: play their exact board.
+  // Accept a friend's challenge: play their exact map + letters.
   function acceptChallenge() {
-    setBoard(challenge.board.slice())
+    const m = getMap(challenge.mapId)
+    setMap(m)
+    setBoard(boardFromLetters(m, challenge.letters))
     resetRound()
     setPhase('playing')
   }
@@ -89,8 +99,13 @@ export default function App() {
   async function shareChallenge() {
     const trimmed = name.trim()
     saveName(trimmed)
-    const url = buildChallengeUrl({ board, score, name: trimmed || 'A friend' })
-    const text = `I scored ${score} on Sammy Word — can you beat it?`
+    const url = buildChallengeUrl({
+      mapId: map.id,
+      letters: boardLetters(board),
+      score,
+      name: trimmed || 'A friend',
+    })
+    const text = `I scored ${score} on Sammy Word (${map.name}) — can you beat it?`
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Sammy Word', text, url })
@@ -113,16 +128,19 @@ export default function App() {
     return el ? Number(el.getAttribute('data-tile')) : null
   }
 
-  const extendSelection = useCallback((idx) => {
-    if (idx == null) return
-    setSelection((sel) => {
-      if (sel.length === 0) return [idx]
-      if (sel.length >= 2 && idx === sel[sel.length - 2]) return sel.slice(0, -1)
-      const last = sel[sel.length - 1]
-      if (idx === last || sel.includes(idx) || !areAdjacent(last, idx)) return sel
-      return [...sel, idx]
-    })
-  }, [])
+  const extendSelection = useCallback(
+    (idx) => {
+      if (idx == null) return
+      setSelection((sel) => {
+        if (sel.length === 0) return [idx]
+        if (sel.length >= 2 && idx === sel[sel.length - 2]) return sel.slice(0, -1)
+        const last = sel[sel.length - 1]
+        if (idx === last || sel.includes(idx) || !areAdjacent(last, idx, map.cols)) return sel
+        return [...sel, idx]
+      })
+    },
+    [map.cols],
+  )
 
   const onPointerDown = (e) => {
     if (phase !== 'playing') return
@@ -170,7 +188,7 @@ export default function App() {
             onNew={newGame}
           />
         ) : (
-          <Home onStart={newGame} ready={dictionary != null} />
+          <Home onStart={newGame} ready={dictionary != null} mapId={mapId} setMapId={setMapId} />
         )}
       </Overlay>
     )
@@ -202,6 +220,13 @@ export default function App() {
         )}
       </Overlay>
     )
+
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${map.cols}, 1fr)`,
+    gridTemplateRows: `repeat(${map.rows}, 1fr)`,
+    gap: map.cols <= 4 ? '10px' : '6px',
+  }
+  const glyphFont = `calc(min(86vw, 360px) / ${map.cols} * 0.46)`
 
   return (
     <div className="app">
@@ -235,15 +260,19 @@ export default function App() {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <div className="grid tile-grid">
-          {board.map((_, i) => (
-            <div
-              key={i}
-              data-tile={i}
-              ref={(el) => (tileRefs.current[i] = el)}
-              className={`tile ${selection.includes(i) ? 'selected' : ''}`}
-            />
-          ))}
+        <div className="grid tile-grid" style={gridStyle}>
+          {board.map((cell, i) =>
+            cell == null ? (
+              <div key={i} className="cell-hole" />
+            ) : (
+              <div
+                key={i}
+                data-tile={i}
+                ref={(el) => (tileRefs.current[i] = el)}
+                className={`tile ${selection.includes(i) ? 'selected' : ''}`}
+              />
+            ),
+          )}
         </div>
 
         <svg className="path-svg" ref={svgRef}>
@@ -272,10 +301,14 @@ export default function App() {
           )}
         </svg>
 
-        <div className="grid glyph-grid">
-          {board.map((letter, i) => (
-            <div key={i} className="glyph">{letter}</div>
-          ))}
+        <div className="grid glyph-grid" style={{ ...gridStyle, fontSize: glyphFont }}>
+          {board.map((cell, i) =>
+            cell == null ? (
+              <div key={i} />
+            ) : (
+              <div key={i} className="glyph">{cell}</div>
+            ),
+          )}
         </div>
       </div>
     </div>
@@ -286,12 +319,66 @@ function Overlay({ children }) {
   return <div className="overlay-wrap">{children}</div>
 }
 
-function MiniBoard({ letters }) {
+// Abstract shape preview (filled vs hole cells) used in the map selector.
+function MiniShape({ map }) {
   return (
-    <div className="mini-board">
-      {letters.map((l, i) => (
-        <div className="mini-tile" key={i}>{l}</div>
+    <div
+      className="mini-shape"
+      style={{
+        gridTemplateColumns: `repeat(${map.cols}, 1fr)`,
+        gridTemplateRows: `repeat(${map.rows}, 1fr)`,
+      }}
+    >
+      {map.mask.map((on, i) => (
+        <span key={i} className={`ms-cell ${on ? 'on' : 'off'}`} />
       ))}
+    </div>
+  )
+}
+
+// Small wood-tile board (shape-aware, with letters) used in the challenge intro.
+function MiniBoard({ map, board }) {
+  return (
+    <div
+      className="mini-board"
+      style={{
+        gridTemplateColumns: `repeat(${map.cols}, 1fr)`,
+        gridTemplateRows: `repeat(${map.rows}, 1fr)`,
+        fontSize: `calc(150px / ${map.cols} * 0.5)`,
+      }}
+    >
+      {board.map((c, i) =>
+        c == null ? (
+          <div key={i} className="mini-hole" />
+        ) : (
+          <div key={i} className="mini-tile">{c}</div>
+        ),
+      )}
+    </div>
+  )
+}
+
+function GameMode({ mapId, setMapId }) {
+  return (
+    <div className="mode-section">
+      <div className="mode-head">GAME MODE</div>
+      <div className="mode-divider" />
+      <div className="mode-grid">
+        {MAPS.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            className={`mode-opt ${m.id === mapId ? 'sel' : ''}`}
+            onClick={() => setMapId(m.id)}
+          >
+            <span className="mode-name">
+              {m.id === mapId && <span className="dot">•</span>}
+              {m.name}
+            </span>
+            <MiniShape map={m} />
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -324,13 +411,12 @@ function NameRow({ name, setName }) {
   )
 }
 
-function Home({ onStart, ready }) {
-  const demo = ['C', 'A', 'T', 'D', 'W', 'O', 'F', 'O', 'I', 'R', 'D', 'G', 'N', 'O', 'A', 'S']
+function Home({ onStart, ready, mapId, setMapId }) {
   return (
     <div className="card">
-      <h1>How to play:</h1>
-      <p>Connect letters together by dragging your finger. Make as many words as you can.</p>
-      <MiniBoard letters={demo} />
+      <h1>Sammy Word</h1>
+      <p>Drag to connect neighboring letters and make as many words as you can.</p>
+      <GameMode mapId={mapId} setMapId={setMapId} />
       <button className="btn-start" onClick={onStart} disabled={!ready}>
         {ready ? 'New Game' : 'Loading…'}
       </button>
@@ -339,12 +425,17 @@ function Home({ onStart, ready }) {
 }
 
 function ChallengeIntro({ challenge, ready, onAccept, onNew }) {
+  const map = getMap(challenge.mapId)
+  const board = boardFromLetters(map, challenge.letters)
   const who = challenge.name || 'A friend'
   return (
     <div className="card">
       <h1>{who} challenged you!</h1>
-      <p>They scored <b>{pad4(challenge.score)}</b> on this board. Can you beat it?</p>
-      <MiniBoard letters={challenge.board} />
+      <p>
+        They scored <b>{pad4(challenge.score)}</b> on the <b>{map.name}</b> board.
+        Can you beat it?
+      </p>
+      <MiniBoard map={map} board={board} />
       <button className="btn-start" onClick={onAccept} disabled={!ready}>
         {ready ? 'Play This Board' : 'Loading…'}
       </button>

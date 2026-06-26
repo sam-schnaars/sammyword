@@ -13,17 +13,18 @@ function fromB64Url(str) {
   return decodeURIComponent(escape(atob(s)))
 }
 
-// challenge: { board: string[16], score: number, name: string }
-export function encodeChallenge({ board, score, name }) {
-  return toB64Url(JSON.stringify({ b: board.join(''), s: score, n: name || '' }))
+// challenge: { mapId: string, letters: string, score: number, name: string }
+export function encodeChallenge({ mapId, letters, score, name }) {
+  return toB64Url(JSON.stringify({ m: mapId, b: letters, s: score, n: name || '' }))
 }
 
 export function decodeChallenge(str) {
   try {
     const p = JSON.parse(fromB64Url(str))
-    if (typeof p.b !== 'string' || p.b.length !== 16) return null
+    if (typeof p.b !== 'string' || p.b.length < 1) return null
     return {
-      board: p.b.toUpperCase().split(''),
+      mapId: String(p.m || 'classic'),
+      letters: p.b.toUpperCase(),
       score: Number(p.s) || 0,
       name: String(p.n || ''),
     }
