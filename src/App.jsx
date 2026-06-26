@@ -122,6 +122,15 @@ export default function App() {
     setPhase('playing')
   }
 
+  // Return to the home screen so the player can pick a map again.
+  function goHome() {
+    setChallenge(null)
+    clearChallengeFromUrl()
+    setDailyDate(null)
+    setDaily(null)
+    setPhase('start')
+  }
+
   // Accept a friend's challenge: play their exact map + letters.
   function acceptChallenge() {
     const m = getMap(challenge.mapId)
@@ -194,6 +203,7 @@ export default function App() {
     draggingRef.current = false
     if (isValid) {
       const points = scoreForWord(currentWord)
+      navigator.vibrate?.(20) // small haptic tick on mobile (ignored where unsupported)
       setScore((s) => s + points)
       setFound((f) => [{ word: currentWord, points }, ...f])
       const key = Date.now()
@@ -242,7 +252,7 @@ export default function App() {
             setName={setName}
             onShare={shareChallenge}
             shareMsg={shareMsg}
-            onNew={newGame}
+            onNew={goHome}
           />
         ) : dailyDate ? (
           <DailyResult
@@ -252,7 +262,7 @@ export default function App() {
             setName={setName}
             onShare={shareChallenge}
             shareMsg={shareMsg}
-            onNew={newGame}
+            onNew={goHome}
             daily={daily}
             dailyDate={dailyDate}
           />
@@ -264,7 +274,7 @@ export default function App() {
             setName={setName}
             onShare={shareChallenge}
             shareMsg={shareMsg}
-            onNew={newGame}
+            onNew={goHome}
           />
         )}
       </Overlay>
@@ -366,7 +376,11 @@ export default function App() {
 }
 
 function Overlay({ children }) {
-  return <div className="overlay-wrap">{children}</div>
+  return (
+    <div className="overlay-wrap">
+      <div className="overlay-inner">{children}</div>
+    </div>
+  )
 }
 
 // Abstract shape preview (filled vs hole cells) used in the map selector.

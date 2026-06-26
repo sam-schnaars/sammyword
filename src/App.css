@@ -1,7 +1,9 @@
 .app {
   width: 100%;
   max-width: 430px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -122,9 +124,12 @@
 /* ===== Board ===== */
 .board-frame {
   position: relative;
-  width: min(90vw, 380px);
+  /* Cap by width AND by leftover vertical space so it always fits the
+     viewport (header + timer + word slot reserve ~250px). */
+  width: min(90vw, 380px, calc((100dvh - 250px)));
   aspect-ratio: 1 / 1;
   margin-top: 4px;
+  flex-shrink: 0;
   padding: 16px;
   background: var(--board-panel);
   border-radius: 32px;
@@ -217,12 +222,22 @@
 
 /* ===== Overlays (start / game over) ===== */
 .overlay-wrap {
-  flex: 1;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* min-height:100% keeps the card centered when it fits, but lets the wrap
+   scroll (without clipping the top) when the card is taller than the viewport. */
+.overlay-inner {
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  width: 100%;
+  padding: 20px;
 }
 
 .card {
