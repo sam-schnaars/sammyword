@@ -4,8 +4,24 @@
 // responds with { configured: false } so the app degrades gracefully.
 import { Redis } from '@upstash/redis'
 
-const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL
-const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN
+// Find the Upstash REST URL + token regardless of the env-var prefix Vercel's
+// storage integration chose (e.g. KV_REST_API_URL, UPSTASH_REDIS_REST_URL, or a
+// custom-prefixed STORAGE_KV_REST_API_URL).
+function findRedisCreds() {
+  const e = process.env
+  let url = e.KV_REST_API_URL || e.UPSTASH_REDIS_REST_URL
+  let token = e.KV_REST_API_TOKEN || e.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) {
+    for (const [k, v] of Object.entries(e)) {
+      if (!v) continue
+      if (!url && /(REST_API_URL|REDIS_REST_URL)$/.test(k)) url = v
+      if (!token && /(REST_API_TOKEN|REDIS_REST_TOKEN)$/.test(k)) token = v
+    }
+  }
+  return { url, token }
+}
+
+const { url, token } = findRedisCreds()
 const redis = url && token ? new Redis({ url, token }) : null
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/

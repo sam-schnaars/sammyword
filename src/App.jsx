@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import {
   HEART,
@@ -7,6 +7,7 @@ import {
   areAdjacent,
   boardFromLetters,
   boardLetters,
+  buildTrie,
   dailyKey,
   generateBoard,
   generateDailyBoard,
@@ -61,6 +62,13 @@ export default function App() {
       .catch(() => setDictionary(new Set()))
   }, [])
 
+  // Prefix trie for the board solver — built once when the dictionary lands,
+  // then handed to the generator so boards are guaranteed to contain words.
+  const solverTrie = useMemo(
+    () => (dictionary && dictionary.size ? buildTrie(dictionary) : null),
+    [dictionary],
+  )
+
   useEffect(() => {
     if (phase !== 'playing') return
     if (timeLeft <= 0) {
@@ -103,7 +111,11 @@ export default function App() {
     setChallenge(null)
     clearChallengeFromUrl()
     setMap(m)
-    setBoard(isDaily ? generateDailyBoard(m) : generateBoard(m))
+    setBoard(
+      isDaily
+        ? generateDailyBoard(m, dailyKey(), { trie: solverTrie })
+        : generateBoard(m, undefined, { trie: solverTrie }),
+    )
     setDailyDate(isDaily ? dailyKey() : null)
     setDaily(null)
     resetRound()

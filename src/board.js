@@ -105,33 +105,112 @@ function hashStr(s) {
 // UTC day key, so the daily board flips at the same moment worldwide.
 export const dailyKey = (d = new Date()) => d.toISOString().slice(0, 10)
 
-// Flat array of length rows*cols; holes are null, playable cells are letters.
-// Retries until the board has a reasonable vowel ratio. Pass a seeded `rng`
-// for a deterministic board.
-export function generateBoard(map, rng = Math.random) {
-  const pick = () => LETTER_BAG[Math.floor(rng() * LETTER_BAG.length)]
-  const n = map.rows * map.cols
-  let board = new Array(n).fill(null)
-  for (let attempt = 0; attempt < 40; attempt++) {
-    board = new Array(n).fill(null)
-    let active = 0
-    let vowels = 0
-    for (let i = 0; i < n; i++) {
-      if (map.mask[i]) {
-        const L = pick()
-        board[i] = L
-        active++
-        if (VOWELS.has(L)) vowels++
-      }
+// Build a prefix trie from a dictionary (any iterable of lowercase words).
+// Nodes are plain objects keyed by letter; `$: true` marks a complete word.
+// Words shorter than 3 or longer than 12 are skipped — Word Hunt paths can't
+// usefully be longer, and the cap keeps the solver's recursion bounded.
+export function buildTrie(words) {
+  const root = {}
+  for (const w of words) {
+    if (w.length < 3 || w.length > 12) continue
+    let node = root
+    for (let i = 0; i < w.length; i++) {
+      const ch = w[i]
+      node = node[ch] || (node[ch] = {})
     }
-    if (active === 0 || vowels / active >= 0.32) break
+    node.$ = true
   }
+  return root
+}
+
+// Find every valid word reachable on `board` by walking adjacent (incl.
+// diagonal) cells without reusing a cell — i.e. all words the player could
+// trace. Returns a Set of lowercase words. The trie prunes dead paths early,
+// so this stays fast even on the largest boards.
+export function solveBoard(board, cols, trie) {
+  const n = board.length
+  const neighbors = new Array(n)
+  for (let i = 0; i < n; i++) {
+    if (board[i] == null) continue
+    const list = []
+    for (let j = 0; j < n; j++) {
+      if (board[j] != null && j !== i && areAdjacent(i, j, cols)) list.push(j)
+    }
+    neighbors[i] = list
+  }
+  const found = new Set()
+  const visited = new Array(n).fill(false)
+  function dfs(i, node, prefix) {
+    const next = node[board[i].toLowerCase()]
+    if (!next) return
+    const word = prefix + board[i].toLowerCase()
+    if (next.$ && word.length >= 3) found.add(word)
+    visited[i] = true
+    for (const j of neighbors[i]) if (!visited[j]) dfs(j, next, word)
+    visited[i] = false
+  }
+  for (let i = 0; i < n; i++) if (board[i] != null) dfs(i, trie, '')
+  return found
+}
+
+// Fill the playable cells of `map` with letters drawn via `pick`.
+function fillBoard(map, pick) {
+  const n = map.rows * map.cols
+  const board = new Array(n).fill(null)
+  for (let i = 0; i < n; i++) if (map.mask[i]) board[i] = pick()
   return board
 }
 
+// Flat array of length rows*cols; holes are null, playable cells are letters.
+// Pass a seeded `rng` for a deterministic board.
+//
+// Guardrails: every board must clear a vowel band (so it's neither consonant
+// soup nor all vowels) AND, when a solver `trie` is supplied, be provably
+// "fun" — yielding at least `minLong` words of length >= 5 and `minMid` words
+// of length 4. We retry up to `attempts` times, keeping the closest board as a
+// fallback if no attempt fully qualifies (so generation always returns).
+export function generateBoard(map, rng = Math.random, opts = {}) {
+  const { trie = null, minLong = 2, minMid = 3, attempts = 150 } = opts
+  const pick = () => LETTER_BAG[Math.floor(rng() * LETTER_BAG.length)]
+
+  let fallback = null
+  let fallbackScore = -1
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const board = fillBoard(map, pick)
+    const active = board.filter((c) => c != null).length
+    if (active === 0) return board
+
+    // Cheap pre-filter: skip the solver on lopsided vowel boards.
+    const vowels = board.filter((c) => c != null && VOWELS.has(c)).length
+    const ratio = vowels / active
+    if (ratio < 0.3 || ratio > 0.6) continue
+
+    if (!trie) return board // no solver available — vowel band is the only gate
+
+    const words = solveBoard(board, map.cols, trie)
+    let long = 0
+    let mid = 0
+    for (const w of words) {
+      if (w.length >= 5) long++
+      else if (w.length === 4) mid++
+    }
+    if (long >= minLong && mid >= minMid) return board
+
+    // Keep the best near-miss so we never fail to return a board.
+    const closeness = Math.min(long, minLong) + Math.min(mid, minMid)
+    if (closeness > fallbackScore) {
+      fallbackScore = closeness
+      fallback = board
+    }
+  }
+  return fallback || fillBoard(map, pick)
+}
+
 // Deterministic board for the given day (same letters for every player).
-export function generateDailyBoard(map, key = dailyKey()) {
-  return generateBoard(map, mulberry32(hashStr('sammyword-' + key)))
+// Determinism holds as long as `opts.trie` is built from the same dictionary
+// everywhere — the seeded rng replays the same accept/reject sequence.
+export function generateDailyBoard(map, key = dailyKey(), opts = {}) {
+  return generateBoard(map, mulberry32(hashStr('sammyword-' + key)), opts)
 }
 
 // The playable letters in index order — what we share in a challenge link.
