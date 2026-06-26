@@ -247,14 +247,27 @@ export default function App() {
         </div>
 
         <svg className="path-svg" ref={svgRef}>
-          {pathPoints.length >= 2 && (
+          {/* Settled segments (everything except the newest) draw instantly */}
+          {pathPoints.length >= 3 && (
             <polyline
-              points={pathPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+              points={pathPoints.slice(0, -1).map((p) => `${p.x},${p.y}`).join(' ')}
               fill="none"
               stroke="var(--path-red)"
               strokeWidth="9"
               strokeLinecap="round"
               strokeLinejoin="round"
+            />
+          )}
+          {/* Newest segment animates quickly from the previous tile to the new one */}
+          {pathPoints.length >= 2 && (
+            <line
+              key={selection[selection.length - 1]}
+              className="path-seg"
+              x1={pathPoints[pathPoints.length - 2].x}
+              y1={pathPoints[pathPoints.length - 2].y}
+              x2={pathPoints[pathPoints.length - 1].x}
+              y2={pathPoints[pathPoints.length - 1].y}
+              pathLength="1"
             />
           )}
         </svg>

@@ -158,6 +158,21 @@
   pointer-events: none;
 }
 
+/* Newest path segment quickly "draws" from the previous tile to the new one */
+.path-seg {
+  stroke: var(--path-red);
+  stroke-width: 9;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 1;
+  animation: drawSeg 100ms linear;
+}
+
+@keyframes drawSeg {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
 /* background tiles (real wood-grain texture) */
 .tile {
   border-radius: 13px;
