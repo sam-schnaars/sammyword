@@ -125,13 +125,13 @@
   width: min(90vw, 380px);
   aspect-ratio: 1 / 1;
   margin-top: 4px;
-  padding: 14px;
+  padding: 16px;
   background: var(--board-panel);
-  border-radius: 26px;
-  border: 4px solid var(--board-rim);
+  border-radius: 32px;
+  border: 11px solid var(--board-rim);
   box-shadow:
-    inset 0 0 0 3px var(--board-rim-dark),
-    0 8px 18px rgba(0, 0, 0, 0.22);
+    inset 0 0 0 2px var(--board-rim-dark),
+    0 8px 18px rgba(0, 0, 0, 0.28);
   touch-action: none;
 }
 
@@ -141,7 +141,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(4, 1fr);
-  gap: 9px;
+  gap: 10px;
 }
 
 .path-svg {
@@ -158,21 +158,30 @@
   pointer-events: none;
 }
 
-/* background tiles (wood) */
+/* background tiles (real wood-grain texture) */
 .tile {
-  border-radius: 11px;
-  background: linear-gradient(180deg, var(--tile-top), var(--tile-bottom));
+  border-radius: 13px;
+  background-image: url(/wood.svg);
+  background-size: cover;
+  background-position: center;
   box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.45),
-    0 3px 0 var(--tile-bevel);
-  transition: background 0.05s ease, box-shadow 0.05s ease;
+    inset 0 2px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 4px rgba(120, 80, 30, 0.35),
+    0 4px 5px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.05s ease;
 }
 
+/* a little grain variation across the board */
+.tile:nth-child(4n + 2) { background-position: top left; }
+.tile:nth-child(4n + 3) { background-position: bottom right; }
+.tile:nth-child(2n) { background-position: top right; }
+
 .tile.selected {
-  background: var(--tile-selected);
+  background-image: none;
+  background-color: var(--tile-selected);
   box-shadow:
     inset 0 0 0 2px #e7e7e7,
-    0 2px 0 #cfcfcf;
+    0 4px 5px rgba(0, 0, 0, 0.3);
 }
 
 /* letters layer (on top of path) */
@@ -180,9 +189,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--tile-text);
-  font-weight: 600;
-  font-size: clamp(26px, 8.5vw, 40px);
+  color: #0f0f0f;
+  font-family: 'Archivo Black', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(28px, 9vw, 44px);
 }
 
 /* ===== Overlays (start / game over) ===== */
@@ -238,15 +248,20 @@
 }
 
 .mini-tile {
-  border-radius: 7px;
-  background: linear-gradient(180deg, var(--tile-top), var(--tile-bottom));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 var(--tile-bevel);
+  border-radius: 8px;
+  background-image: url(/wood.svg);
+  background-size: cover;
+  background-position: center;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    0 2px 3px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 19px;
-  font-weight: 600;
-  color: var(--tile-text);
+  font-size: 20px;
+  font-family: 'Archivo Black', system-ui, sans-serif;
+  font-weight: 400;
+  color: #0f0f0f;
 }
 
 .btn-start {
