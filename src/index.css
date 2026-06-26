@@ -1,0 +1,57 @@
+:root {
+  /* Pulled from the reference Word Hunt recording */
+  --bg-green: #557f4e;
+  --bg-green-2: #4f7748;
+  --board-panel: #5d9a5b;
+  --board-rim: #8ed18e;
+  --board-rim-dark: #4a8a4e;
+  --tile-top: #f3c47e;
+  --tile-bottom: #e3a85f;
+  --tile-bevel: #c2854a;
+  --tile-text: #3d2b16;
+  --tile-selected: #ffffff;
+  --path-red: #d6342a;
+  --start-green: #6dcb6c;
+  --start-green-dark: #4ea84d;
+  --header-text: #233a22;
+
+  font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #fff;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--bg-green);
+  /* Subtle interlocking-arc texture, like the reference background */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M24 6a18 18 0 0 1 18 18M6 24a18 18 0 0 1 18-18M42 24a18 18 0 0 1-18 18M24 42a18 18 0 0 1-18-18' fill='none' stroke='%234f7748' stroke-width='5'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
