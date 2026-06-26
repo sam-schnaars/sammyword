@@ -103,11 +103,12 @@ export default function App() {
     setShareMsg('')
   }
 
-  // Start a brand-new game on the selected map (clears any challenge).
+  // Start a brand-new game on the given map (defaults to the last-used one).
   // For the Map of the Day, the board is deterministic for today.
-  function newGame() {
-    const isDaily = mapId === 'daily'
-    const m = getMap(mapId)
+  function newGame(id = mapId) {
+    const isDaily = id === 'daily'
+    const m = getMap(id)
+    setMapId(id)
     setChallenge(null)
     clearChallengeFromUrl()
     setMap(m)
@@ -235,7 +236,7 @@ export default function App() {
             onNew={newGame}
           />
         ) : (
-          <Home onStart={newGame} ready={dictionary != null} mapId={mapId} setMapId={setMapId} />
+          <Home onStart={newGame} ready={dictionary != null} mapId={mapId} />
         )}
       </Overlay>
     )
@@ -422,7 +423,7 @@ function MiniBoard({ map, board }) {
   )
 }
 
-function GameMode({ mapId, setMapId }) {
+function GameMode({ mapId, onStart, ready }) {
   return (
     <div className="mode-section">
       <div className="mode-head">GAME MODE</div>
@@ -433,12 +434,10 @@ function GameMode({ mapId, setMapId }) {
             key={m.id}
             type="button"
             className={`mode-opt ${m.id === mapId ? 'sel' : ''}`}
-            onClick={() => setMapId(m.id)}
+            onClick={() => onStart(m.id)}
+            disabled={!ready}
           >
-            <span className="mode-name">
-              {m.id === mapId && <span className="dot">•</span>}
-              {m.name}
-            </span>
+            <span className="mode-name">{m.name}</span>
             <MiniShape map={m} />
           </button>
         ))}
@@ -475,16 +474,17 @@ function NameRow({ name, setName }) {
   )
 }
 
-function Home({ onStart, ready, mapId, setMapId }) {
+function Home({ onStart, ready, mapId }) {
   return (
     <div className="card">
       <h1>Sammy Word</h1>
-      <p>Drag to connect neighboring letters and make as many words as you can.</p>
+      <p>Tap a game mode to play. Drag to connect letters and make words!</p>
 
       <button
         type="button"
         className={`daily-card ${mapId === 'daily' ? 'sel' : ''}`}
-        onClick={() => setMapId('daily')}
+        onClick={() => onStart('daily')}
+        disabled={!ready}
       >
         <MiniShape map={HEART} />
         <span className="daily-text">
@@ -493,10 +493,8 @@ function Home({ onStart, ready, mapId, setMapId }) {
         </span>
       </button>
 
-      <GameMode mapId={mapId} setMapId={setMapId} />
-      <button className="btn-start" onClick={onStart} disabled={!ready}>
-        {ready ? 'New Game' : 'Loading…'}
-      </button>
+      <GameMode mapId={mapId} onStart={onStart} ready={ready} />
+      {!ready && <p className="muted-note">Loading dictionary…</p>}
     </div>
   )
 }
