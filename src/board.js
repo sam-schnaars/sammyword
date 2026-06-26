@@ -57,7 +57,17 @@ export const MAPS = [
   ]),
 ]
 
-export const getMap = (id) => MAPS.find((m) => m.id === id) || MAPS[0]
+// The daily map's shape — a heart. Not in the regular grid; it's the featured
+// "Map of the Day" with deterministic letters.
+export const HEART = makeMap('daily', 'Map of the Day', [
+  '##..##',
+  '######',
+  '######',
+  '.####.',
+  '..##..',
+])
+
+export const getMap = (id) => [...MAPS, HEART].find((m) => m.id === id) || MAPS[0]
 
 // Weighted letter bag (Scrabble-ish distribution) — keeps a healthy vowel ratio
 // for any board size.
@@ -73,11 +83,33 @@ const LETTER_BAG = (() => {
 })()
 
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U'])
-const randLetter = () => LETTER_BAG[Math.floor(Math.random() * LETTER_BAG.length)]
+
+// Seeded PRNG so the "Map of the Day" is identical for everyone on a given day.
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+function hashStr(s) {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+// UTC day key, so the daily board flips at the same moment worldwide.
+export const dailyKey = (d = new Date()) => d.toISOString().slice(0, 10)
 
 // Flat array of length rows*cols; holes are null, playable cells are letters.
-// Retries until the board has a reasonable vowel ratio.
-export function generateBoard(map) {
+// Retries until the board has a reasonable vowel ratio. Pass a seeded `rng`
+// for a deterministic board.
+export function generateBoard(map, rng = Math.random) {
+  const pick = () => LETTER_BAG[Math.floor(rng() * LETTER_BAG.length)]
   const n = map.rows * map.cols
   let board = new Array(n).fill(null)
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -86,7 +118,7 @@ export function generateBoard(map) {
     let vowels = 0
     for (let i = 0; i < n; i++) {
       if (map.mask[i]) {
-        const L = randLetter()
+        const L = pick()
         board[i] = L
         active++
         if (VOWELS.has(L)) vowels++
@@ -95,6 +127,11 @@ export function generateBoard(map) {
     if (active === 0 || vowels / active >= 0.32) break
   }
   return board
+}
+
+// Deterministic board for the given day (same letters for every player).
+export function generateDailyBoard(map, key = dailyKey()) {
+  return generateBoard(map, mulberry32(hashStr('sammyword-' + key)))
 }
 
 // The playable letters in index order — what we share in a challenge link.
@@ -106,7 +143,7 @@ export function boardFromLetters(map, letters) {
   const board = new Array(n).fill(null)
   let k = 0
   for (let i = 0; i < n; i++) {
-    if (map.mask[i]) board[i] = letters[k++] || randLetter()
+    if (map.mask[i]) board[i] = letters[k++] || LETTER_BAG[Math.floor(Math.random() * LETTER_BAG.length)]
   }
   return board
 }

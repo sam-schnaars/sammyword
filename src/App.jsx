@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import {
+  HEART,
   MAPS,
   ROUND_SECONDS,
   areAdjacent,
   boardFromLetters,
   boardLetters,
+  dailyKey,
   generateBoard,
+  generateDailyBoard,
   getMap,
   scoreForWord,
 } from './board.js'
 import {
   buildChallengeUrl,
   clearChallengeFromUrl,
+  dailyBest,
   loadName,
   readChallengeFromUrl,
+  saveDailyBest,
   saveName,
 } from './share.js'
 
@@ -40,6 +45,10 @@ export default function App() {
   const [name, setName] = useState(() => loadName())
   const [shareMsg, setShareMsg] = useState('')
 
+  // Map of the Day: the day key of the current daily round (null for others).
+  const [dailyDate, setDailyDate] = useState(null)
+  const [daily, setDaily] = useState(null) // { best, record } shown at game over
+
   const svgRef = useRef(null)
   const tileRefs = useRef([])
   const draggingRef = useRef(false)
@@ -61,6 +70,15 @@ export default function App() {
     return () => clearTimeout(id)
   }, [phase, timeLeft])
 
+  // Record the local personal best when a Map of the Day round ends.
+  useEffect(() => {
+    if (phase !== 'over' || !dailyDate || challenge) return
+    const prev = dailyBest(dailyDate)
+    const record = score > prev
+    if (record) saveDailyBest(dailyDate, score)
+    setDaily({ best: Math.max(prev, score), record })
+  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const currentWord = selection.map((i) => board[i]).join('')
   const foundSet = new Set(found.map((f) => f.word))
   const isWord = currentWord.length >= 3 && dictionary?.has(currentWord.toLowerCase())
@@ -76,13 +94,17 @@ export default function App() {
     setShareMsg('')
   }
 
-  // Start a brand-new random game on the selected map (clears any challenge).
+  // Start a brand-new game on the selected map (clears any challenge).
+  // For the Map of the Day, the board is deterministic for today.
   function newGame() {
+    const isDaily = mapId === 'daily'
     const m = getMap(mapId)
     setChallenge(null)
     clearChallengeFromUrl()
     setMap(m)
-    setBoard(generateBoard(m))
+    setBoard(isDaily ? generateDailyBoard(m) : generateBoard(m))
+    setDailyDate(isDaily ? dailyKey() : null)
+    setDaily(null)
     resetRound()
     setPhase('playing')
   }
@@ -92,6 +114,8 @@ export default function App() {
     const m = getMap(challenge.mapId)
     setMap(m)
     setBoard(boardFromLetters(m, challenge.letters))
+    setDailyDate(null)
+    setDaily(null)
     resetRound()
     setPhase('playing')
   }
@@ -216,6 +240,7 @@ export default function App() {
             onShare={shareChallenge}
             shareMsg={shareMsg}
             onNew={newGame}
+            daily={daily}
           />
         )}
       </Overlay>
@@ -255,6 +280,7 @@ export default function App() {
 
       <div
         className="board-frame"
+        style={{ aspectRatio: `${map.cols} / ${map.rows}` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -416,6 +442,19 @@ function Home({ onStart, ready, mapId, setMapId }) {
     <div className="card">
       <h1>Sammy Word</h1>
       <p>Drag to connect neighboring letters and make as many words as you can.</p>
+
+      <button
+        type="button"
+        className={`daily-card ${mapId === 'daily' ? 'sel' : ''}`}
+        onClick={() => setMapId('daily')}
+      >
+        <MiniShape map={HEART} />
+        <span className="daily-text">
+          <span className="daily-title">❤️ Map of the Day</span>
+          <span className="daily-sub">Same heart board for everyone today</span>
+        </span>
+      </button>
+
       <GameMode mapId={mapId} setMapId={setMapId} />
       <button className="btn-start" onClick={onStart} disabled={!ready}>
         {ready ? 'New Game' : 'Loading…'}
@@ -454,12 +493,18 @@ function ShareBlock({ name, setName, onShare, shareMsg, label }) {
   )
 }
 
-function Result({ score, found, name, setName, onShare, shareMsg, onNew }) {
+function Result({ score, found, name, setName, onShare, shareMsg, onNew, daily }) {
   return (
     <div className="card">
       <h1>Time!</h1>
       <div className="final-score">{pad4(score)}</div>
       <p>{found.length} word{found.length === 1 ? '' : 's'} found</p>
+      {daily && (
+        <div className={`daily-result ${daily.record ? 'record' : ''}`}>
+          {daily.record ? '❤️ New personal best today!' : '❤️ Your best today'}
+          <span className="daily-best">{pad4(daily.best)}</span>
+        </div>
+      )}
       <ShareBlock
         name={name}
         setName={setName}

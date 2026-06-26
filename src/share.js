@@ -46,6 +46,29 @@ export function clearChallengeFromUrl() {
   history.replaceState(null, '', location.pathname + location.search)
 }
 
+// Local (this-device) personal best for the daily board, keyed by day.
+// A real cross-player leaderboard needs a shared backend (e.g. Vercel KV);
+// this is the zero-dependency starting point.
+export function dailyBest(dayKey) {
+  try {
+    return Number(localStorage.getItem('sw-best-' + dayKey)) || 0
+  } catch {
+    return 0
+  }
+}
+
+export function saveDailyBest(dayKey, score) {
+  try {
+    if (score > dailyBest(dayKey)) {
+      localStorage.setItem('sw-best-' + dayKey, String(score))
+      return true
+    }
+  } catch {
+    /* ignore */
+  }
+  return false
+}
+
 const NAME_KEY = 'sw-name'
 export const loadName = () => {
   try {

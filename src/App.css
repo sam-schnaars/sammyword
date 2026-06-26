@@ -368,6 +368,82 @@
   background: var(--start-green);
 }
 
+/* ===== Map of the Day (featured heart) ===== */
+.daily-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  border: 2px solid #f3c6cf;
+  background: #fff2f4;
+  border-radius: 16px;
+  padding: 12px 14px;
+  transition: border-color 0.1s ease, background 0.1s ease;
+}
+
+.daily-card.sel {
+  border-color: #e8607a;
+  background: #ffe7ec;
+}
+
+.daily-card .mini-shape {
+  width: 50px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.daily-card .ms-cell.on {
+  background: #f0a9b6;
+}
+
+.daily-card.sel .ms-cell.on {
+  background: #e8607a;
+}
+
+.daily-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.daily-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #c0394f;
+}
+
+.daily-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9a7077;
+}
+
+.daily-result {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff2f4;
+  border: 2px solid #f3c6cf;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #c0394f;
+}
+
+.daily-result.record {
+  background: #ffe7ec;
+  border-color: #e8607a;
+}
+
+.daily-result .daily-best {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--header-text);
+}
+
 .btn-start {
   border: none;
   border-radius: 16px;

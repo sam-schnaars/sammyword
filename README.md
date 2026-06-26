@@ -24,7 +24,25 @@ When a friend opens the link they see *"You've been challenged!"*, play the
 They can **Challenge them back** on the same board to keep it going.
 
 The link only works where the app is hosted — for friends to play it must be
-deployed (e.g. GitHub Pages), not just running on `localhost`.
+deployed (e.g. Vercel), not just running on `localhost`.
+
+## Map shapes & Map of the Day
+
+The home screen has a **GAME MODE** picker with several board shapes (classic
+4×4, donut, plus, diamond) plus a featured **❤️ Map of the Day** — a heart
+board whose letters are generated deterministically from the (UTC) date, so
+everyone gets the same daily board.
+
+The daily board tracks a **personal best for the day** in `localStorage`. This
+is a local, per-device best — the starting point for a leaderboard.
+
+### Leaderboard notes
+
+- A **global** leaderboard (all players' scores) needs a shared datastore.
+  Since this is hosted on Vercel, **Vercel KV** (or Vercel Postgres) is the
+  lowest-friction option — no new vendor. Supabase/Firebase also work.
+- **Personal-best** and **friend-vs-friend** (via the existing challenge links)
+  leaderboards need no backend and work today.
 
 ## Run it
 
