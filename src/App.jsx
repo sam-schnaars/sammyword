@@ -22,6 +22,7 @@ import {
   saveDailyBest,
   saveName,
 } from './share.js'
+import { fetchLeaderboard, submitScore } from './leaderboard.js'
 
 const fmtTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -231,6 +232,18 @@ export default function App() {
             shareMsg={shareMsg}
             onNew={newGame}
           />
+        ) : dailyDate ? (
+          <DailyResult
+            score={score}
+            found={found}
+            name={name}
+            setName={setName}
+            onShare={shareChallenge}
+            shareMsg={shareMsg}
+            onNew={newGame}
+            daily={daily}
+            dailyDate={dailyDate}
+          />
         ) : (
           <Result
             score={score}
@@ -240,7 +253,6 @@ export default function App() {
             onShare={shareChallenge}
             shareMsg={shareMsg}
             onNew={newGame}
-            daily={daily}
           />
         )}
       </Overlay>
@@ -493,7 +505,99 @@ function ShareBlock({ name, setName, onShare, shareMsg, label }) {
   )
 }
 
-function Result({ score, found, name, setName, onShare, shareMsg, onNew, daily }) {
+function Result({ score, found, name, setName, onShare, shareMsg, onNew }) {
+  return (
+    <div className="card">
+      <h1>Time!</h1>
+      <div className="final-score">{pad4(score)}</div>
+      <p>{found.length} word{found.length === 1 ? '' : 's'} found</p>
+      <ShareBlock
+        name={name}
+        setName={setName}
+        onShare={onShare}
+        shareMsg={shareMsg}
+        label="Challenge a friend"
+      />
+      <FoundList found={found} />
+      <button className="btn-start" onClick={onNew}>New Game</button>
+    </div>
+  )
+}
+
+function Leaderboard({ day, score, name }) {
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState(null)
+  const [posting, setPosting] = useState(false)
+  const [posted, setPosted] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        if (name.trim()) {
+          await submitScore({ day, score, name: name.trim() })
+          if (alive) setPosted(true)
+        }
+        const d = await fetchLeaderboard(day)
+        if (alive) setData(d)
+      } catch {
+        if (alive) setData({ configured: false, entries: [] })
+      }
+      if (alive) setLoading(false)
+    })()
+    return () => {
+      alive = false
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function post() {
+    setPosting(true)
+    try {
+      await submitScore({ day, score, name: name.trim() || 'Anonymous' })
+      setData(await fetchLeaderboard(day))
+      setPosted(true)
+    } catch {
+      /* ignore */
+    }
+    setPosting(false)
+  }
+
+  if (loading)
+    return (
+      <div className="lb">
+        <div className="lb-head">🏆 Global Leaderboard</div>
+        <p className="lb-note">Loading…</p>
+      </div>
+    )
+  if (!data?.configured) return null // backend not provisioned yet — stay hidden
+
+  return (
+    <div className="lb">
+      <div className="lb-head">🏆 Global Leaderboard</div>
+      {data.entries.length === 0 ? (
+        <p className="lb-note">Be the first to post a score!</p>
+      ) : (
+        <ol className="lb-list">
+          {data.entries.map((e, i) => (
+            <li key={i} className={e.you ? 'you' : ''}>
+              <span className="lb-rank">{i + 1}</span>
+              <span className="lb-name">{e.name}</span>
+              <span className="lb-score">{pad4(e.score)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {data.rank && <p className="lb-note">Your rank today: #{data.rank}</p>}
+      {!posted && (
+        <button className="btn-share lb-post" onClick={post} disabled={posting}>
+          {posting ? 'Posting…' : 'Post my score'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function DailyResult({ score, found, name, setName, onShare, shareMsg, onNew, daily, dailyDate }) {
   return (
     <div className="card">
       <h1>Time!</h1>
@@ -505,13 +609,10 @@ function Result({ score, found, name, setName, onShare, shareMsg, onNew, daily }
           <span className="daily-best">{pad4(daily.best)}</span>
         </div>
       )}
-      <ShareBlock
-        name={name}
-        setName={setName}
-        onShare={onShare}
-        shareMsg={shareMsg}
-        label="Challenge a friend"
-      />
+      <NameRow name={name} setName={setName} />
+      <Leaderboard day={dailyDate} score={score} name={name} />
+      <button className="btn-share" onClick={onShare}>Challenge a friend</button>
+      {shareMsg && <p className="share-msg">{shareMsg}</p>}
       <FoundList found={found} />
       <button className="btn-start" onClick={onNew}>New Game</button>
     </div>

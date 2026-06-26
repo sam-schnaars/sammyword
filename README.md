@@ -36,13 +36,29 @@ everyone gets the same daily board.
 The daily board tracks a **personal best for the day** in `localStorage`. This
 is a local, per-device best — the starting point for a leaderboard.
 
-### Leaderboard notes
+## Global leaderboard (Vercel + Redis)
 
-- A **global** leaderboard (all players' scores) needs a shared datastore.
-  Since this is hosted on Vercel, **Vercel KV** (or Vercel Postgres) is the
-  lowest-friction option — no new vendor. Supabase/Firebase also work.
-- **Personal-best** and **friend-vs-friend** (via the existing challenge links)
-  leaderboards need no backend and work today.
+The daily results screen shows a **global leaderboard**, served by the
+serverless function `api/leaderboard.js` backed by Redis (Upstash / Vercel KV).
+It stores each player's best score per UTC day in a sorted set.
+
+The frontend (`src/leaderboard.js`) talks to it. If the datastore isn't
+configured, the function returns `{ configured: false }` and the leaderboard UI
+simply stays hidden — the rest of the app is unaffected.
+
+### One-time setup (Vercel dashboard)
+
+This is the only manual step — it needs your account and injects env vars:
+
+1. Vercel → your project → **Storage** → **Create Database** → pick a Redis
+   store (**Upstash**, free tier is fine).
+2. **Connect** it to this project. Vercel adds the env vars automatically
+   (`KV_REST_API_URL`/`KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL`/`_TOKEN`
+   — the function accepts either).
+3. Redeploy (a push triggers one). The leaderboard then lights up.
+
+No leaderboard locally: `vite dev` doesn't run the serverless function, so the
+panel stays hidden in dev — test it on the Vercel deployment.
 
 ## Run it
 
