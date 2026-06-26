@@ -301,3 +301,112 @@
   font-size: 11px;
   margin-left: 5px;
 }
+
+/* ===== Challenge / share controls ===== */
+.card h1.win {
+  color: #2f8f3a;
+}
+.card h1.lose {
+  color: #b3261e;
+}
+
+.name-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  color: #1c1c1c;
+  padding: 11px 14px;
+  border: 2px solid #d8d8d8;
+  border-radius: 14px;
+  outline: none;
+  background: #f7f7f7;
+}
+.name-input:focus {
+  border-color: var(--start-green);
+  background: #fff;
+}
+
+.btn-share {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 19px;
+  padding: 13px 20px;
+  color: #fff;
+  background: #3a7bd5;
+  box-shadow: 0 5px 0 #2c5fa8;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+.btn-share:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #2c5fa8;
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  color: #6a6a6a;
+  font-weight: 500;
+  font-size: 15px;
+  text-decoration: underline;
+  padding: 2px;
+}
+
+.share-msg {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f8f3a;
+  word-break: break-all;
+}
+
+/* ===== Versus comparison ===== */
+.versus {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.vs-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: 16px;
+  background: #f1f1f1;
+}
+
+.vs-col.winner {
+  background: #def7d8;
+  box-shadow: inset 0 0 0 2px #6dcb6c;
+}
+
+.vs-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vs-score {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--header-text);
+  line-height: 1;
+}
+
+.vs-x {
+  font-size: 15px;
+  font-weight: 600;
+  color: #999;
+}

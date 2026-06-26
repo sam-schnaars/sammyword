@@ -8,10 +8,23 @@ in the rounded **Fredoka** font.
 
 ## How to play
 
-- Press **Play**, then drag across the 4×4 grid to connect neighboring letters
-  (horizontal, vertical, and diagonal).
+- Press **New Game**, then drag across the 4×4 grid to connect neighboring
+  letters (horizontal, vertical, and diagonal).
 - Words must be 3+ letters and in the dictionary. Longer words score more.
 - You get 80 seconds per round.
+
+## Challenge a friend
+
+When your round ends, enter your name and tap **Challenge a friend**. That
+builds a link encoding your exact board + score in the URL hash (no backend) —
+on a phone it opens the native share sheet, on desktop it copies the link.
+
+When a friend opens the link they see *"You've been challenged!"*, play the
+**same board**, and the end screen compares both scores and declares a winner.
+They can **Challenge them back** on the same board to keep it going.
+
+The link only works where the app is hosted — for friends to play it must be
+deployed (e.g. GitHub Pages), not just running on `localhost`.
 
 ## Run it
 
@@ -25,6 +38,7 @@ npm run build    # production build to dist/
 
 - `src/App.jsx` — game UI, drag selection, timer, scoring, screens.
 - `src/board.js` — board generation (Boggle dice), adjacency, score table.
+- `src/share.js` — encode/decode a challenge (board + score + name) to/from a URL.
 - `src/App.css` / `src/index.css` — Game Pigeon styling.
 - `public/words.txt` — dictionary for word validation (filtered system word list),
   fetched at runtime.
