@@ -550,20 +550,19 @@ function Result({ score, found, name, setName, onShare, shareMsg, onNew }) {
   )
 }
 
-function Leaderboard({ day, score, name }) {
+function Leaderboard({ day, score, name, setName }) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState(null)
   const [posting, setPosting] = useState(false)
   const [posted, setPosted] = useState(false)
+  const [prompting, setPrompting] = useState(false) // name popup open?
 
+  // Only fetch for display — posting is an explicit, opt-in action so we never
+  // submit a score without the player confirming their name in the popup.
   useEffect(() => {
     let alive = true
     ;(async () => {
       try {
-        if (name.trim()) {
-          await submitScore({ day, score, name: name.trim() })
-          if (alive) setPosted(true)
-        }
         const d = await fetchLeaderboard(day)
         if (alive) setData(d)
       } catch {
@@ -576,12 +575,17 @@ function Leaderboard({ day, score, name }) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function post() {
+  // Called from the name popup with the confirmed name.
+  async function post(entered) {
+    const finalName = entered.trim() || 'Anonymous'
     setPosting(true)
     try {
-      await submitScore({ day, score, name: name.trim() || 'Anonymous' })
+      saveName(finalName)
+      setName(finalName)
+      await submitScore({ day, score, name: finalName })
       setData(await fetchLeaderboard(day))
       setPosted(true)
+      setPrompting(false)
     } catch {
       /* ignore */
     }
@@ -614,11 +618,52 @@ function Leaderboard({ day, score, name }) {
         </ol>
       )}
       {data.rank && <p className="lb-note">Your rank today: #{data.rank}</p>}
-      {!posted && (
-        <button className="btn-share lb-post" onClick={post} disabled={posting}>
-          {posting ? 'Posting…' : 'Post my score'}
+      {posted ? (
+        <p className="lb-note posted">Posted! ✅</p>
+      ) : (
+        <button className="btn-share lb-post" onClick={() => setPrompting(true)}>
+          Post my score
         </button>
       )}
+      {prompting && (
+        <NamePrompt
+          initial={name}
+          score={score}
+          posting={posting}
+          onSubmit={post}
+          onCancel={() => setPrompting(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Modal popup that asks for the player's name before posting to the leaderboard.
+function NamePrompt({ initial, score, posting, onSubmit, onCancel }) {
+  const [val, setVal] = useState(initial || '')
+  return (
+    <div className="modal-backdrop" onPointerDown={onCancel}>
+      <div className="modal" onPointerDown={(e) => e.stopPropagation()}>
+        <h2 className="modal-title">Post your score</h2>
+        <p className="modal-sub">
+          Posting <b>{pad4(score)}</b> to today’s leaderboard. What name should we show?
+        </p>
+        <input
+          className="name-input"
+          value={val}
+          onChange={(e) => setVal(e.target.value.slice(0, 16))}
+          onKeyDown={(e) => e.key === 'Enter' && !posting && onSubmit(val)}
+          placeholder="Your name"
+          maxLength={16}
+          autoFocus
+        />
+        <button className="btn-share" onClick={() => onSubmit(val)} disabled={posting}>
+          {posting ? 'Posting…' : 'Post score'}
+        </button>
+        <button className="btn-link" onClick={onCancel} disabled={posting}>
+          Cancel
+        </button>
+      </div>
     </div>
   )
 }
@@ -635,8 +680,7 @@ function DailyResult({ score, found, name, setName, onShare, shareMsg, onNew, da
           <span className="daily-best">{pad4(daily.best)}</span>
         </div>
       )}
-      <NameRow name={name} setName={setName} />
-      <Leaderboard day={dailyDate} score={score} name={name} />
+      <Leaderboard day={dailyDate} score={score} name={name} setName={setName} />
       <button className="btn-share" onClick={onShare}>Challenge a friend</button>
       {shareMsg && <p className="share-msg">{shareMsg}</p>}
       <FoundList found={found} />
