@@ -7,7 +7,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            Theme.background
             switch session.presentation {
             case .compact:
                 CompactView(session: session)
@@ -39,167 +39,688 @@ struct CompactView: View {
     }
 
     private var subtitle: String {
-        if let payload = session.incoming, payload.isChallenge {
-            let who = payload.challengerName ?? "A friend"
-            return "\(who) challenged you — tap to play"
+        switch session.incoming {
+        case let .wordHunt(p) where p.isChallenge:
+            return "\(p.challengerName ?? "A friend") challenged you — tap to play"
+        case let .flagMatch(p) where p.isChallenge:
+            return "\(p.challengerName ?? "A friend") challenged you — tap to play"
+        default:
+            return "Tap to play"
         }
-        return "Tap to play"
     }
 }
 
-/// The expanded sheet: plays a round, then shows results + send actions.
+/// The expanded sheet: pick a mode, play a round, then show results + send.
 struct ExpandedView: View {
     @ObservedObject var session: GameSession
     @StateObject private var game = WordHuntGame()
-    @State private var started = false
+
+    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch }
+    @State private var screen: Screen = .modePicker
+    @State private var dailyKey: String?            // non-nil while playing the daily board
+    @State private var wordChallenge: GamePayload?  // incoming Word Hunt challenge, if any
+    @State private var kicked = false
 
     var body: some View {
         Group {
-            if game.isOver {
-                GameOverView(game: game, session: session)
-            } else {
-                GameView(game: game)
+            switch screen {
+            case .modePicker:
+                ModePicker(
+                    onWordHunt: { screen = .wordHome },
+                    onFlags: { wordChallenge = nil; dailyKey = nil; screen = .flagMatch }
+                )
+            case .wordHome:
+                WordHuntHome(onMap: startMap, onDaily: startDaily, onBack: { screen = .modePicker })
+            case .loading:
+                LoadingView()
+            case .wordPlaying:
+                if game.isOver {
+                    WordHuntOverView(
+                        game: game,
+                        challenge: wordChallenge,
+                        dailyKey: dailyKey,
+                        session: session,
+                        onNewGame: { wordChallenge = nil; dailyKey = nil; screen = .wordHome }
+                    )
+                } else {
+                    GameView(game: game)
+                }
+            case .flagMatch:
+                FlagMatchView(
+                    challenge: incomingFlagChallenge,
+                    session: session,
+                    onHome: { screen = .modePicker }
+                )
             }
         }
-        .onAppear {
-            guard !started else { return }
-            started = true
-            let board = session.incoming?.board ?? GameBoard.random()
-            game.start(board: board)
+        .onAppear(perform: begin)
+    }
+
+    private var incomingFlagChallenge: FlagPayload? {
+        if case let .flagMatch(p) = session.incoming, p.isChallenge { return p }
+        return nil
+    }
+
+    private func begin() {
+        guard !kicked else { return }
+        kicked = true
+        // A tapped challenge deep-jumps straight into the relevant mode.
+        if case let .wordHunt(p) = session.incoming, p.isChallenge {
+            wordChallenge = p
+            dailyKey = nil
+            game.start(board: p.board)
+            screen = .wordPlaying
+        } else if incomingFlagChallenge != nil {
+            screen = .flagMatch
+        }
+    }
+
+    /// Generate a guaranteed-solvable board for the chosen map off the main
+    /// thread (dictionary load + solver), then start the round.
+    private func startMap(_ map: GameMap) {
+        wordChallenge = nil
+        dailyKey = nil
+        screen = .loading
+        DispatchQueue.global(qos: .userInitiated).async {
+            let board = BoardGenerator.generate(map: map)
+            DispatchQueue.main.async {
+                game.start(board: board)
+                screen = .wordPlaying
+            }
+        }
+    }
+
+    /// The deterministic Map of the Day (heart board), tracked for the leaderboard.
+    private func startDaily() {
+        wordChallenge = nil
+        let key = BoardGenerator.dailyKey()
+        dailyKey = key
+        screen = .loading
+        DispatchQueue.global(qos: .userInitiated).async {
+            let board = BoardGenerator.dailyBoard(map: .heart, key: key)
+            DispatchQueue.main.async {
+                game.start(board: board)
+                screen = .wordPlaying
+            }
         }
     }
 }
 
-/// Final score, optional head-to-head comparison, and the share/challenge button.
-struct GameOverView: View {
-    @ObservedObject var game: WordHuntGame
-    @ObservedObject var session: GameSession
-    @State private var sent = false
-
-    private var incoming: GamePayload? { session.incoming }
+/// Home screen: pick a game mode.
+struct ModePicker: View {
+    let onWordHunt: () -> Void
+    let onFlags: () -> Void
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                Text(headline)
-                    .font(Theme.rounded(34, .heavy))
-                    .foregroundColor(Theme.onBackground)
-                    .padding(.top, 12)
+                Text("Sammy Word")
+                    .font(Theme.rounded(30, .heavy))
+                    .foregroundColor(Theme.headerText)
+                    .padding(.top, 16)
+                Text("Choose a game mode")
+                    .font(Theme.rounded(15, .medium))
+                    .foregroundColor(Theme.mutedText)
 
-                if let challenge = incoming, challenge.isChallenge {
-                    versus(myScore: game.score, theirScore: challenge.challengerScore ?? 0,
-                           theirName: challenge.challengerName ?? "Them")
-                } else {
-                    Text(String(format: "%04d", game.score))
-                        .font(Theme.rounded(64, .heavy))
-                        .foregroundColor(Theme.onBackground)
-                    Text("\(game.foundWords.count) word\(game.foundWords.count == 1 ? "" : "s") found")
-                        .font(Theme.rounded(16, .medium))
-                        .foregroundColor(Theme.onBackground.opacity(0.9))
-                }
-
-                Button(action: send) {
-                    Text(sent ? "Sent! ✓" : sendLabel)
-                        .font(Theme.rounded(20, .bold))
-                        .foregroundColor(Theme.accent)
-                        .padding(.vertical, 14)
-                        .frame(maxWidth: .infinity)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                }
-                .disabled(sent)
-                .padding(.horizontal, 24)
-
-                foundList
+                modeTile(icon: "🔤", title: "Word Hunt",
+                         sub: "Trace letters on a board to find as many words as you can",
+                         action: onWordHunt)
+                modeTile(icon: "🚩", title: "Flag Match",
+                         sub: "Match each flag to its country against the clock",
+                         action: onFlags)
             }
             .padding(20)
         }
     }
 
-    private var headline: String {
-        guard let challenge = incoming, challenge.isChallenge else { return "Time!" }
-        let theirs = challenge.challengerScore ?? 0
-        if game.score > theirs { return "You win! 🎉" }
-        if game.score < theirs { return "You lost" }
-        return "It's a tie!"
+    private func modeTile(icon: String, title: String, sub: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Text(icon).font(.system(size: 34))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(Theme.rounded(19, .bold)).foregroundColor(Theme.headerText)
+                    Text(sub).font(Theme.rounded(13, .medium)).foregroundColor(Theme.mutedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity)
+            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Theme.panelBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(MapCardButtonStyle())
+    }
+}
+
+/// Word Hunt home: the featured Map of the Day plus the board-shape picker.
+struct WordHuntHome: View {
+    let onMap: (GameMap) -> Void
+    let onDaily: () -> Void
+    let onBack: () -> Void
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                HStack {
+                    Button(action: onBack) {
+                        Text("← Modes").font(Theme.rounded(15, .semibold)).foregroundColor(Theme.dimText)
+                    }
+                    Spacer()
+                }
+                Text("Word Hunt")
+                    .font(Theme.rounded(28, .heavy))
+                    .foregroundColor(Theme.headerText)
+                Text("Pick a board to play")
+                    .font(Theme.rounded(14, .medium))
+                    .foregroundColor(Theme.mutedText)
+
+                // Featured: Map of the Day (deterministic heart board).
+                Button(action: onDaily) {
+                    HStack(spacing: 14) {
+                        MiniShape(map: .heart, tint: Color(hex: 0xE0556B))
+                            .frame(width: 66, height: 66)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("❤️ Map of the Day")
+                                .font(Theme.rounded(18, .bold)).foregroundColor(Theme.headerText)
+                            Text("Same heart board for everyone today")
+                                .font(Theme.rounded(13, .medium)).foregroundColor(Theme.mutedText)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity)
+                    .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Theme.boardRim, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(MapCardButtonStyle())
+
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(GameMap.all.filter { $0.id != "heart" }) { map in
+                        Button { onMap(map) } label: { MapCard(map: map) }
+                            .buttonStyle(MapCardButtonStyle())
+                    }
+                }
+            }
+            .padding(20)
+        }
+    }
+}
+
+/// A tappable card previewing one board shape.
+struct MapCard: View {
+    let map: GameMap
+
+    var body: some View {
+        VStack(spacing: 12) {
+            MiniShape(map: map)
+                .frame(width: 88, height: 88)
+            Text(map.name)
+                .font(Theme.rounded(16, .bold))
+                .foregroundColor(Theme.headerText)
+            Text("\(map.activeCount) tiles")
+                .font(Theme.rounded(12, .medium))
+                .foregroundColor(Theme.dimText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
+        .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Theme.panelBorder, lineWidth: 1)
+        )
+    }
+}
+
+/// Press feedback for cards.
+struct MapCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+/// A small grid preview of a map shape (active cells filled, holes empty).
+struct MiniShape: View {
+    let map: GameMap
+    var tint: Color = Theme.selected
+
+    var body: some View {
+        GeometryReader { geo in
+            let spacing: CGFloat = 3
+            let availW = geo.size.width - spacing * CGFloat(map.cols - 1)
+            let availH = geo.size.height - spacing * CGFloat(map.rows - 1)
+            let cell = min(availW / CGFloat(map.cols), availH / CGFloat(map.rows))
+            let gridW = cell * CGFloat(map.cols) + spacing * CGFloat(map.cols - 1)
+            let gridH = cell * CGFloat(map.rows) + spacing * CGFloat(map.rows - 1)
+            let ox = (geo.size.width - gridW) / 2
+            let oy = (geo.size.height - gridH) / 2
+
+            ForEach(0..<map.cellCount, id: \.self) { i in
+                if map.mask[i] {
+                    RoundedRectangle(cornerRadius: cell * 0.24, style: .continuous)
+                        .fill(tint)
+                        .frame(width: cell, height: cell)
+                        .position(
+                            x: ox + CGFloat(i % map.cols) * (cell + spacing) + cell / 2,
+                            y: oy + CGFloat(i / map.cols) * (cell + spacing) + cell / 2
+                        )
+                }
+            }
+        }
+    }
+}
+
+/// Shown while the first board is generated (dictionary load + solver).
+struct LoadingView: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+                .tint(Theme.headerText)
+                .scaleEffect(1.3)
+            Text("Building a board…")
+                .font(Theme.rounded(16, .medium))
+                .foregroundColor(Theme.mutedText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Word Hunt results
+
+/// Final score for a Word Hunt round: a head-to-head comparison when it was a
+/// challenge (mirrored word columns + YOU WON! banner), the daily leaderboard on
+/// the Map of the Day, or a plain score otherwise.
+struct WordHuntOverView: View {
+    @ObservedObject var game: WordHuntGame
+    let challenge: GamePayload?
+    let dailyKey: String?
+    @ObservedObject var session: GameSession
+    let onNewGame: () -> Void
+
+    @State private var name = DailyStore.playerName
+    @State private var sent = false
+
+    private var theirWords: [FoundWord] {
+        (challenge?.challengerWords ?? []).map {
+            FoundWord(word: $0, points: Scoring.points(forLength: $0.count))
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if let c = challenge {
+                    let theirScore = c.challengerScore ?? 0
+                    OutcomeBanner(kind: .of(my: game.score, their: theirScore))
+                        .padding(.top, 8)
+                    VersusWords(
+                        mine: game.foundWords,
+                        theirs: theirWords,
+                        myScore: game.score,
+                        theirScore: theirScore,
+                        theirName: c.challengerName ?? "Them",
+                        iWin: game.score > theirScore,
+                        theyWin: theirScore > game.score
+                    )
+                } else {
+                    Text("Time!")
+                        .font(Theme.rounded(32, .heavy))
+                        .foregroundColor(Theme.headerText)
+                        .padding(.top, 10)
+                    Text(String(format: "%04d", game.score))
+                        .font(Theme.rounded(60, .heavy))
+                        .foregroundColor(Theme.headerText)
+                    Text("\(game.foundWords.count) word\(game.foundWords.count == 1 ? "" : "s") found")
+                        .font(Theme.rounded(15, .medium))
+                        .foregroundColor(Theme.mutedText)
+                }
+
+                if let day = dailyKey, challenge == nil {
+                    LeaderboardView(day: day, score: game.score, name: name)
+                }
+
+                NameField(name: $name)
+                sendButton
+
+                Button(action: onNewGame) {
+                    Text("New board")
+                        .font(Theme.rounded(16, .semibold))
+                        .foregroundColor(Theme.mutedText)
+                        .underline()
+                }
+
+                if challenge == nil {
+                    FlowChips(words: game.foundWords.sorted {
+                        $0.points != $1.points ? $0.points > $1.points : $0.word < $1.word
+                    })
+                    .padding(.horizontal, 8)
+                }
+            }
+            .padding(20)
+        }
+        .onAppear {
+            if let day = dailyKey { DailyStore.saveBest(day, game.score) }
+        }
     }
 
     private var sendLabel: String {
-        if let challenge = incoming, challenge.isChallenge {
-            return "Send result & rematch"
-        }
-        return "Challenge a friend"
+        challenge != nil ? "Send result & rematch" : "Challenge a friend"
     }
 
-    private func versus(myScore: Int, theirScore: Int, theirName: String) -> some View {
-        HStack(spacing: 14) {
-            scoreColumn(name: "You", score: myScore, winner: myScore >= theirScore)
-            Text("vs").font(Theme.rounded(15, .semibold)).foregroundColor(Theme.onBackground.opacity(0.8))
-            scoreColumn(name: theirName, score: theirScore, winner: theirScore > myScore)
+    private var sendButton: some View {
+        Button(action: send) {
+            Text(sent ? "Sent! ✓" : sendLabel)
+                .font(Theme.rounded(20, .bold))
+                .foregroundColor(.white)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Theme.accentDark).offset(y: 5)
+                )
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-    }
-
-    private func scoreColumn(name: String, score: Int, winner: Bool) -> some View {
-        VStack(spacing: 2) {
-            Text(name).font(Theme.rounded(14, .semibold)).lineLimit(1)
-            Text(String(format: "%04d", score)).font(Theme.rounded(30, .heavy))
-        }
-        .foregroundColor(Theme.onBackground)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(
-            (winner ? Color.white.opacity(0.28) : Color.white.opacity(0.12)),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-    }
-
-    private var foundList: some View {
-        let sorted = game.foundWords.sorted {
-            $0.points != $1.points ? $0.points > $1.points : $0.word < $1.word
-        }
-        return VStack(alignment: .leading, spacing: 8) {
-            if !sorted.isEmpty {
-                Text("WORDS")
-                    .font(Theme.rounded(12, .semibold))
-                    .foregroundColor(Theme.onBackground.opacity(0.85))
-            }
-            FlowChips(words: sorted)
-        }
-        .padding(.horizontal, 8)
+        .disabled(sent)
+        .opacity(sent ? 0.6 : 1)
+        .padding(.horizontal, 24)
     }
 
     private func send() {
-        // Same board, my score becomes the score to beat.
+        let finalName = name.trimmingCharacters(in: .whitespaces)
+        DailyStore.playerName = finalName
         let payload = GamePayload(
+            mapId: game.board.map.id,
             letters: game.board.letters,
             challengerScore: game.score,
-            challengerName: "Me"
+            challengerName: finalName.isEmpty ? "Me" : finalName,
+            challengerWords: game.foundWords.map { $0.word }
         )
-        let caption = "Sammy Word — beat my \(game.score)?"
-        session.sendResult(payload, caption)
+        session.send(.wordHunt(payload), "Sammy Word — beat my \(game.score)?")
         sent = true
     }
 }
 
-/// Simple wrap layout for the found-word chips.
-struct FlowChips: View {
-    let words: [FoundWord]
+// MARK: - Head-to-head word columns (mirrors the web "YOU WON!" screen)
+
+enum OutcomeKind {
+    case won, lost, tie
+
+    static func of(my: Int, their: Int) -> OutcomeKind {
+        my > their ? .won : (my < their ? .lost : .tie)
+    }
+
+    var text: String {
+        switch self {
+        case .won: return "YOU WON!"
+        case .lost: return "YOU LOST"
+        case .tie: return "IT'S A TIE!"
+        }
+    }
+    var fg: Color {
+        switch self {
+        case .won: return Color(hex: 0x2A2300)
+        case .lost: return .white
+        case .tie: return Color(hex: 0xE7ECF6)
+        }
+    }
+    var bg: Color {
+        switch self {
+        case .won: return Color(hex: 0xFFD23F)
+        case .lost: return Color(hex: 0xD06070)
+        case .tie: return Color(hex: 0x3A7BD5)
+        }
+    }
+    var shadow: Color {
+        switch self {
+        case .won: return Color(hex: 0xD9A800)
+        case .lost: return Color(hex: 0xA8475A)
+        case .tie: return Color(hex: 0x2C5FA8)
+        }
+    }
+}
+
+struct OutcomeBanner: View {
+    let kind: OutcomeKind
+    var body: some View {
+        Text(kind.text)
+            .font(Theme.rounded(28, .heavy))
+            .foregroundColor(kind.fg)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 34)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(kind.shadow).offset(y: 5)
+            )
+            .background(kind.bg, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+/// Two mirrored columns of scored words — yours on the left (chip + points),
+/// the opponent's on the right (points + chip) — each with a WORDS/SCORE header,
+/// truncated to a preview until "View all words" is tapped.
+struct VersusWords: View {
+    let mine: [FoundWord]
+    let theirs: [FoundWord]
+    let myScore: Int
+    let theirScore: Int
+    let theirName: String
+    let iWin: Bool
+    let theyWin: Bool
+
+    @State private var showAll = false
+    private let preview = 12
 
     var body: some View {
-        // A lightweight wrapping grid that works on iOS 16.
+        let mineSorted = sorted(mine)
+        let theirsSorted = sorted(theirs)
+        let hidden = max(mineSorted.count, theirsSorted.count) - preview
+        VStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                column(name: "You", words: mineSorted, count: mine.count, score: myScore, winner: iWin, mirror: false)
+                column(name: theirName, words: theirsSorted, count: theirs.count, score: theirScore, winner: theyWin, mirror: true)
+            }
+            if hidden > 0 {
+                Button(showAll ? "Show fewer words" : "View all words") {
+                    withAnimation { showAll.toggle() }
+                }
+                .font(Theme.rounded(16, .bold))
+                .foregroundColor(Color(hex: 0x14161F))
+                .padding(.vertical, 12)
+                .padding(.horizontal, 28)
+                .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+        }
+    }
+
+    private func sorted(_ a: [FoundWord]) -> [FoundWord] {
+        a.sorted { $0.points != $1.points ? $0.points > $1.points : $0.word < $1.word }
+    }
+
+    private func column(name: String, words: [FoundWord], count: Int, score: Int, winner: Bool, mirror: Bool) -> some View {
+        let align: HorizontalAlignment = mirror ? .trailing : .leading
+        let shown = showAll ? words : Array(words.prefix(preview))
+        let more = words.count - shown.count
+        return VStack(alignment: align, spacing: 8) {
+            Text(name)
+                .font(Theme.rounded(15, .bold))
+                .foregroundColor(winner ? Color(hex: 0xFFD23F) : Theme.headerText)
+                .shadow(color: winner ? Color(hex: 0xFFD23F).opacity(0.6) : .clear, radius: 10)
+
+            VStack(alignment: align, spacing: 1) {
+                Text("WORDS: \(count)")
+                    .font(Theme.rounded(12, .bold)).foregroundColor(Color(hex: 0x4A4F66))
+                Text("SCORE: \(score)")
+                    .font(Theme.rounded(20, .heavy)).foregroundColor(Color(hex: 0x14161F))
+            }
+            .frame(maxWidth: .infinity, alignment: mirror ? .trailing : .leading)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color(hex: 0xF2F4FA), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(winner ? Color(hex: 0xFFD23F) : .clear, lineWidth: 2)
+            )
+
+            VStack(spacing: 6) {
+                ForEach(shown) { fw in
+                    if mirror {
+                        HStack(spacing: 8) {
+                            Text("\(fw.points)").font(Theme.rounded(14, .bold)).foregroundColor(Theme.headerText)
+                            Spacer(minLength: 0)
+                            wordChip(fw.word)
+                        }
+                    } else {
+                        HStack(spacing: 8) {
+                            wordChip(fw.word)
+                            Spacer(minLength: 0)
+                            Text("\(fw.points)").font(Theme.rounded(14, .bold)).foregroundColor(Theme.headerText)
+                        }
+                    }
+                }
+                if shown.isEmpty {
+                    Text("No words").font(Theme.rounded(13, .medium)).foregroundColor(Theme.dimText)
+                }
+                if more > 0 {
+                    Text("(\(more) more)").font(Theme.rounded(12, .semibold)).foregroundColor(Theme.dimText)
+                }
+            }
+            .padding(9)
+            .frame(maxWidth: .infinity)
+            .background(Theme.boardPanel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Theme.panelBorder, lineWidth: 1)
+            )
+        }
+    }
+
+    private func wordChip(_ word: String) -> some View {
+        Text(word == "QU" ? "Qu" : word.replacingOccurrences(of: "QU", with: "Qu"))
+            .font(Theme.rounded(13, .bold))
+            .foregroundColor(Theme.tileText)
+            .padding(.horizontal, 9).padding(.vertical, 4)
+            .background(Theme.tileGradient, in: Capsule())
+    }
+}
+
+// MARK: - Leaderboard
+
+struct LeaderboardView: View {
+    let day: String
+    let score: Int
+    let name: String
+
+    @State private var data: LeaderboardData?
+    @State private var posting = false
+    @State private var posted = false
+
+    var body: some View {
+        Group {
+            if data == nil {
+                VStack(spacing: 6) {
+                    Text("🏆 Global Leaderboard").font(Theme.rounded(15, .bold)).foregroundColor(Theme.headerText)
+                    ProgressView().tint(Theme.mutedText)
+                }
+                .frame(maxWidth: .infinity).padding(14)
+                .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else if let d = data, d.configured {
+                card(d)
+            } else {
+                EmptyView()  // backend not provisioned — stay hidden, like the web
+            }
+        }
+        .task { if data == nil { data = await Leaderboard.fetch(day: day) } }
+    }
+
+    private func card(_ d: LeaderboardData) -> some View {
+        VStack(spacing: 8) {
+            Text("🏆 Global Leaderboard").font(Theme.rounded(15, .bold)).foregroundColor(Theme.headerText)
+            if d.entries.isEmpty {
+                Text("Be the first to post a score!").font(Theme.rounded(13, .medium)).foregroundColor(Theme.mutedText)
+            } else {
+                VStack(spacing: 4) {
+                    ForEach(Array(d.entries.prefix(10).enumerated()), id: \.element.id) { i, e in
+                        HStack {
+                            Text("\(i + 1)").font(Theme.rounded(13, .bold)).foregroundColor(Theme.dimText).frame(width: 22, alignment: .leading)
+                            Text(e.name).font(Theme.rounded(14, e.you ? .heavy : .semibold))
+                                .foregroundColor(e.you ? Theme.positive : Theme.headerText).lineLimit(1)
+                            Spacer()
+                            Text(String(format: "%04d", e.score)).font(Theme.rounded(14, .bold)).foregroundColor(Theme.headerText)
+                        }
+                    }
+                }
+            }
+            if let rank = d.rank { Text("Your rank today: #\(rank)").font(Theme.rounded(12, .medium)).foregroundColor(Theme.mutedText) }
+            if posted {
+                Text("Posted! ✅").font(Theme.rounded(13, .semibold)).foregroundColor(Theme.positive)
+            } else {
+                Button(action: { Task { await post() } }) {
+                    Text(posting ? "Posting…" : "Post my score")
+                        .font(Theme.rounded(14, .bold)).foregroundColor(Theme.headerText)
+                }
+                .disabled(posting)
+            }
+        }
+        .frame(maxWidth: .infinity).padding(14)
+        .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.panelBorder, lineWidth: 1))
+    }
+
+    private func post() async {
+        posting = true
+        let finalName = name.trimmingCharacters(in: .whitespaces)
+        let updated = await Leaderboard.submit(day: day, score: score, name: finalName.isEmpty ? "Anonymous" : finalName)
+        data = updated
+        posted = updated.configured
+        posting = false
+    }
+}
+
+// MARK: - Shared
+
+struct NameField: View {
+    @Binding var name: String
+    var body: some View {
+        TextField("Your name", text: $name)
+            .multilineTextAlignment(.center)
+            .font(Theme.rounded(16, .semibold))
+            .foregroundColor(Theme.headerText)
+            .padding(.vertical, 11).padding(.horizontal, 14)
+            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.panelBorder, lineWidth: 1))
+            .padding(.horizontal, 24)
+            .onChange(of: name) { v in if v.count > 16 { name = String(v.prefix(16)) } }
+    }
+}
+
+/// Wrapping grid of found-word chips.
+struct FlowChips: View {
+    let words: [FoundWord]
+    var body: some View {
         let columns = [GridItem(.adaptive(minimum: 76), spacing: 8)]
         LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
             ForEach(words) { fw in
                 HStack(spacing: 5) {
                     Text(fw.word == "QU" ? "Qu" : fw.word.replacingOccurrences(of: "QU", with: "Qu"))
                         .font(Theme.rounded(14, .bold))
-                    Text("\(fw.points)")
-                        .font(Theme.rounded(11, .semibold))
-                        .opacity(0.55)
+                    Text("\(fw.points)").font(Theme.rounded(11, .semibold)).opacity(0.55)
                 }
-                .foregroundColor(Theme.letter)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Theme.tile, in: Capsule())
+                .foregroundColor(Theme.tileText)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Theme.tileGradient, in: Capsule())
             }
         }
     }

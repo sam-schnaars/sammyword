@@ -13,22 +13,40 @@ import {
   generateDailyBoard,
   getMap,
   scoreForWord,
+  solveBoard,
 } from './board.js'
 import {
   buildChallengeUrl,
   clearChallengeFromUrl,
-  dailyBest,
   loadName,
   readChallengeFromUrl,
-  saveDailyBest,
+  readFlagChallengeFromUrl,
   saveName,
 } from './share.js'
 import { fetchLeaderboard, submitScore } from './leaderboard.js'
+import FlagMatch from './FlagMatch.jsx'
 
 const fmtTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
 const pad4 = (n) => String(n).padStart(4, '0')
+
+// Stronger, length-scaled haptic buzz when a word scores. Web vibration only
+// fires on supporting mobile browsers (a no-op elsewhere); longer words get a
+// heavier, multi-pulse pattern for extra payoff.
+function hapticForWord(len) {
+  if (!navigator.vibrate) return
+  if (len <= 3) navigator.vibrate(45)
+  else if (len === 4) navigator.vibrate(70)
+  else if (len === 5) navigator.vibrate([60, 40, 60])
+  else if (len === 6) navigator.vibrate([70, 40, 90])
+  else navigator.vibrate([80, 50, 80, 50, 120]) // 7+ big payoff
+}
+
+// Rebuild { word, points } rows from a bare list of words (e.g. an opponent's
+// shared words), so they render through the same FoundList chips.
+const wordsToFound = (words = []) =>
+  words.map((word) => ({ word, points: scoreForWord(word) }))
 
 export default function App() {
   const [phase, setPhase] = useState('start') // 'start' | 'playing' | 'over'
@@ -42,14 +60,22 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [pop, setPop] = useState(null) // { key, word, points }
 
+  // Top-level mode: the home "mode select" screen, Word Hunt, or Flag Match.
+  // A challenge link deep-jumps straight into the relevant mode.
+  const [appMode, setAppMode] = useState(() => {
+    if (readFlagChallengeFromUrl()) return 'flags'
+    if (readChallengeFromUrl()) return 'hunt'
+    return 'menu'
+  })
+
   // Challenge flow: a friend's map + letters + score parsed from the URL, if any.
   const [challenge, setChallenge] = useState(() => readChallengeFromUrl())
+  const [flagChallenge, setFlagChallenge] = useState(() => readFlagChallengeFromUrl())
   const [name, setName] = useState(() => loadName())
   const [shareMsg, setShareMsg] = useState('')
 
   // Map of the Day: the day key of the current daily round (null for others).
   const [dailyDate, setDailyDate] = useState(null)
-  const [daily, setDaily] = useState(null) // { best, record } shown at game over
 
   const svgRef = useRef(null)
   const tileRefs = useRef([])
@@ -79,17 +105,26 @@ export default function App() {
     return () => clearTimeout(id)
   }, [phase, timeLeft])
 
-  // Record the local personal best when a Map of the Day round ends.
-  useEffect(() => {
-    if (phase !== 'over' || !dailyDate || challenge) return
-    const prev = dailyBest(dailyDate)
-    const record = score > prev
-    if (record) saveDailyBest(dailyDate, score)
-    setDaily({ best: Math.max(prev, score), record })
-  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const currentWord = selection.map((i) => board[i]).join('')
   const foundSet = new Set(found.map((f) => f.word))
+
+  // Every word the board can yield, bucketed by length — the checklist players
+  // chase. Recomputed only when the board changes (solving is fast via the trie).
+  const possibleByLength = useMemo(() => {
+    if (!solverTrie) return null
+    const counts = {}
+    for (const w of solveBoard(board, map.cols, solverTrie)) {
+      counts[w.length] = (counts[w.length] || 0) + 1
+    }
+    return counts
+  }, [board, map, solverTrie])
+
+  // How many of each length the player has found so far.
+  const foundByLength = useMemo(() => {
+    const counts = {}
+    for (const f of found) counts[f.word.length] = (counts[f.word.length] || 0) + 1
+    return counts
+  }, [found])
   const isWord = currentWord.length >= 3 && dictionary?.has(currentWord.toLowerCase())
   const isValid = isWord && !foundSet.has(currentWord)
   const isDupe = isWord && foundSet.has(currentWord)
@@ -118,7 +153,6 @@ export default function App() {
         : generateBoard(m, undefined, { trie: solverTrie }),
     )
     setDailyDate(isDaily ? dailyKey() : null)
-    setDaily(null)
     resetRound()
     setPhase('playing')
   }
@@ -128,8 +162,14 @@ export default function App() {
     setChallenge(null)
     clearChallengeFromUrl()
     setDailyDate(null)
-    setDaily(null)
     setPhase('start')
+  }
+
+  // End the current round early (skip the rest of the timer).
+  function endGame() {
+    setSelection([])
+    setTimeLeft(0)
+    setPhase('over')
   }
 
   // Accept a friend's challenge: play their exact map + letters.
@@ -138,7 +178,6 @@ export default function App() {
     setMap(m)
     setBoard(boardFromLetters(m, challenge.letters))
     setDailyDate(null)
-    setDaily(null)
     resetRound()
     setPhase('playing')
   }
@@ -151,6 +190,7 @@ export default function App() {
       letters: boardLetters(board),
       score,
       name: trimmed || 'A friend',
+      words: found.map((f) => f.word),
     })
     const text = `I scored ${score} on Sammy Word (${map.name}) — can you beat it?`
     if (navigator.share) {
@@ -204,7 +244,7 @@ export default function App() {
     draggingRef.current = false
     if (isValid) {
       const points = scoreForWord(currentWord)
-      navigator.vibrate?.(20) // small haptic tick on mobile (ignored where unsupported)
+      hapticForWord(currentWord.length) // stronger, length-scaled buzz on mobile
       setScore((s) => s + points)
       setFound((f) => [{ word: currentWord, points }, ...f])
       const key = Date.now()
@@ -225,6 +265,31 @@ export default function App() {
     })
     .filter(Boolean)
 
+  if (appMode === 'menu')
+    return (
+      <Overlay>
+        <ModeSelect
+          ready={dictionary != null}
+          onWordHunt={() => setAppMode('hunt')}
+          onFlags={() => setAppMode('flags')}
+        />
+      </Overlay>
+    )
+
+  if (appMode === 'flags')
+    return (
+      <FlagMatch
+        challenge={flagChallenge}
+        name={name}
+        setName={setName}
+        onHome={() => {
+          setFlagChallenge(null)
+          clearChallengeFromUrl()
+          setAppMode('menu')
+        }}
+      />
+    )
+
   if (phase === 'start')
     return (
       <Overlay>
@@ -236,7 +301,12 @@ export default function App() {
             onNew={newGame}
           />
         ) : (
-          <Home onStart={newGame} ready={dictionary != null} mapId={mapId} />
+          <Home
+            onStart={newGame}
+            ready={dictionary != null}
+            mapId={mapId}
+            onBack={() => setAppMode('menu')}
+          />
         )}
       </Overlay>
     )
@@ -264,7 +334,6 @@ export default function App() {
             onShare={shareChallenge}
             shareMsg={shareMsg}
             onNew={goHome}
-            daily={daily}
             dailyDate={dailyDate}
           />
         ) : (
@@ -296,6 +365,7 @@ export default function App() {
           <span className="words">WORDS: {found.length}</span>
           <span className="score">SCORE: {pad4(score)}</span>
         </div>
+        <button className="end-btn" onClick={endGame}>End Game</button>
       </div>
 
       <div className={`timer-pill ${timeLeft <= 10 ? 'low' : ''}`}>{fmtTime(timeLeft)}</div>
@@ -312,6 +382,8 @@ export default function App() {
           </span>
         )}
       </div>
+
+      <WordGoals possible={possibleByLength} found={foundByLength} />
 
       <div
         className="board-frame"
@@ -372,6 +444,31 @@ export default function App() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Per-length checklist of how many words exist on the board vs. how many the
+// player has traced — e.g. "4 Letter 2/8". Scrolls horizontally if it overflows.
+function WordGoals({ possible, found }) {
+  if (!possible) return null
+  const lengths = Object.keys(possible)
+    .map(Number)
+    .filter((len) => len > 3)
+    .sort((a, b) => a - b)
+  if (lengths.length === 0) return null
+  return (
+    <div className="goals">
+      {lengths.map((len) => {
+        const total = possible[len]
+        const got = found[len] || 0
+        return (
+          <div key={len} className={`goal ${got >= total ? 'done' : ''}`}>
+            <span className="goal-len">{len} Letter</span>
+            <span className="goal-count">{got}/{total}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -446,8 +543,9 @@ function GameMode({ mapId, onStart, ready }) {
   )
 }
 
-function FoundList({ found }) {
-  if (found.length === 0) return null
+function FoundList({ found, empty = null }) {
+  if (found.length === 0)
+    return empty ? <p className="found-empty">{empty}</p> : null
   const sorted = [...found].sort(
     (a, b) => b.points - a.points || a.word.localeCompare(b.word),
   )
@@ -474,11 +572,43 @@ function NameRow({ name, setName }) {
   )
 }
 
-function Home({ onStart, ready, mapId }) {
+// The home screen: pick which game mode to play.
+function ModeSelect({ ready, onWordHunt, onFlags }) {
   return (
     <div className="card">
       <h1>Sammy Word</h1>
-      <p>Tap a game mode to play. Drag to connect letters and make words!</p>
+      <p>Choose a game mode.</p>
+      <div className="mode-list">
+        <button className="mode-tile" onClick={onWordHunt} disabled={!ready}>
+          <span className="mode-tile-icon">🔤</span>
+          <span className="mode-tile-text">
+            <span className="mode-tile-title">Word Hunt</span>
+            <span className="mode-tile-sub">
+              Trace letters on a board to find as many words as you can
+            </span>
+          </span>
+        </button>
+        <button className="mode-tile" onClick={onFlags}>
+          <span className="mode-tile-icon">🚩</span>
+          <span className="mode-tile-text">
+            <span className="mode-tile-title">Flag Match</span>
+            <span className="mode-tile-sub">
+              Match each flag to its country against the clock
+            </span>
+          </span>
+        </button>
+      </div>
+      {!ready && <p className="muted-note">Loading dictionary…</p>}
+    </div>
+  )
+}
+
+function Home({ onStart, ready, mapId, onBack }) {
+  return (
+    <div className="card">
+      <button className="btn-back" onClick={onBack}>← Modes</button>
+      <h1>Word Hunt</h1>
+      <p>Pick a map to play. Drag to connect letters and make words!</p>
 
       <button
         type="button"
@@ -503,6 +633,7 @@ function ChallengeIntro({ challenge, ready, onAccept, onNew }) {
   const map = getMap(challenge.mapId)
   const board = boardFromLetters(map, challenge.letters)
   const who = challenge.name || 'A friend'
+  const theirFound = wordsToFound(challenge.words)
   return (
     <div className="card">
       <h1>{who} challenged you!</h1>
@@ -511,6 +642,14 @@ function ChallengeIntro({ challenge, ready, onAccept, onNew }) {
         Can you beat it?
       </p>
       <MiniBoard map={map} board={board} />
+      {theirFound.length > 0 && (
+        <div className="word-col">
+          <span className="word-col-head">
+            {who} found {theirFound.length} word{theirFound.length === 1 ? '' : 's'}
+          </span>
+          <FoundList found={theirFound} />
+        </div>
+      )}
       <button className="btn-start" onClick={onAccept} disabled={!ready}>
         {ready ? 'Play This Board' : 'Loading…'}
       </button>
@@ -553,10 +692,10 @@ function Leaderboard({ day, score, name, setName }) {
   const [data, setData] = useState(null)
   const [posting, setPosting] = useState(false)
   const [posted, setPosted] = useState(false)
-  const [prompting, setPrompting] = useState(false) // name popup open?
+  const [prompting, setPrompting] = useState(true) // name popup auto-opens at game over
 
-  // Only fetch for display — posting is an explicit, opt-in action so we never
-  // submit a score without the player confirming their name in the popup.
+  // Only fetch for display — the name popup opens automatically and posts the
+  // score as soon as the player confirms their name.
   useEffect(() => {
     let alive = true
     ;(async () => {
@@ -605,9 +744,10 @@ function Leaderboard({ day, score, name, setName }) {
       {data.entries.length === 0 ? (
         <p className="lb-note">Be the first to post a score!</p>
       ) : (
+        // Shows the top 3 at a glance; scroll within the list to see the rest.
         <ol className="lb-list">
           {data.entries.map((e, i) => (
-            <li key={i} className={e.you ? 'you' : ''}>
+            <li key={i} className={`${e.you ? 'you' : ''} ${i < 3 ? 'top' : ''}`}>
               <span className="lb-rank">{i + 1}</span>
               <span className="lb-name">{e.name}</span>
               <span className="lb-score">{pad4(e.score)}</span>
@@ -616,11 +756,10 @@ function Leaderboard({ day, score, name, setName }) {
         </ol>
       )}
       {data.rank && <p className="lb-note">Your rank today: #{data.rank}</p>}
-      {posted ? (
-        <p className="lb-note posted">Posted! ✅</p>
-      ) : (
-        <button className="btn-share lb-post" onClick={() => setPrompting(true)}>
-          Post my score
+      {posted && <p className="lb-note posted">Posted! ✅</p>}
+      {!posted && !prompting && (
+        <button className="btn-link" onClick={() => setPrompting(true)}>
+          Post your score
         </button>
       )}
       {prompting && (
@@ -666,18 +805,12 @@ function NamePrompt({ initial, score, posting, onSubmit, onCancel }) {
   )
 }
 
-function DailyResult({ score, found, name, setName, onShare, shareMsg, onNew, daily, dailyDate }) {
+function DailyResult({ score, found, name, setName, onShare, shareMsg, onNew, dailyDate }) {
   return (
     <div className="card">
       <h1>Time!</h1>
       <div className="final-score">{pad4(score)}</div>
       <p>{found.length} word{found.length === 1 ? '' : 's'} found</p>
-      {daily && (
-        <div className={`daily-result ${daily.record ? 'record' : ''}`}>
-          {daily.record ? '❤️ New personal best today!' : '❤️ Your best today'}
-          <span className="daily-best">{pad4(daily.best)}</span>
-        </div>
-      )}
       <Leaderboard day={dailyDate} score={score} name={name} setName={setName} />
       <button className="btn-share" onClick={onShare}>Challenge a friend</button>
       {shareMsg && <p className="share-msg">{shareMsg}</p>}
@@ -691,22 +824,20 @@ function Compare({ score, found, challenge, name, setName, onShare, shareMsg, on
   const them = challenge.name || 'Your friend'
   const win = score > challenge.score
   const tie = score === challenge.score
-  const headline = tie ? "It's a tie!" : win ? 'You win! 🎉' : 'You lost'
+  const headline = tie ? "IT'S A TIE!" : win ? 'YOU WON!' : 'YOU LOST'
+  const theirFound = wordsToFound(challenge.words)
   return (
-    <div className="card">
-      <h1 className={win ? 'win' : tie ? '' : 'lose'}>{headline}</h1>
-      <div className="versus">
-        <div className={`vs-col ${win && !tie ? 'winner' : ''}`}>
-          <span className="vs-name">You</span>
-          <span className="vs-score">{pad4(score)}</span>
-        </div>
-        <span className="vs-x">vs</span>
-        <div className={`vs-col ${!win && !tie ? 'winner' : ''}`}>
-          <span className="vs-name">{them}</span>
-          <span className="vs-score">{pad4(challenge.score)}</span>
-        </div>
-      </div>
-      <FoundList found={found} />
+    <div className="card compare-card">
+      <div className={`outcome ${tie ? 'tie' : win ? 'won' : 'lost'}`}>{headline}</div>
+      <ScoreDuel
+        mine={found}
+        theirs={theirFound}
+        myScore={score}
+        theirScore={challenge.score}
+        theirName={them}
+        iWin={win && !tie}
+        theyWin={!win && !tie}
+      />
       <ShareBlock
         name={name}
         setName={setName}
@@ -715,6 +846,74 @@ function Compare({ score, found, challenge, name, setName, onShare, shareMsg, on
         label="Challenge them back"
       />
       <button className="btn-start" onClick={onNew}>New Game</button>
+    </div>
+  )
+}
+
+// Head-to-head results: two mirrored columns of scored word tiles (yours on the
+// left, your opponent's on the right), each topped by a WORDS/SCORE header and
+// truncated to a preview until "View all words" is tapped. Mirrors the
+// GamePigeon results screen.
+const DUEL_PREVIEW = 15
+function ScoreDuel({ mine, theirs, myScore, theirScore, theirName, iWin, theyWin }) {
+  const [showAll, setShowAll] = useState(false)
+  const sortWords = (arr) =>
+    [...arr].sort((a, b) => b.points - a.points || a.word.localeCompare(b.word))
+  const mineSorted = sortWords(mine)
+  const theirsSorted = sortWords(theirs)
+  const limit = showAll ? Infinity : DUEL_PREVIEW
+  const hidden = Math.max(mineSorted.length, theirsSorted.length) - DUEL_PREVIEW
+  return (
+    <>
+      <div className="duel">
+        <DuelColumn
+          name="You"
+          words={mineSorted}
+          count={mine.length}
+          score={myScore}
+          limit={limit}
+          align="left"
+          winner={iWin}
+        />
+        <DuelColumn
+          name={theirName}
+          words={theirsSorted}
+          count={theirs.length}
+          score={theirScore}
+          limit={limit}
+          align="right"
+          winner={theyWin}
+        />
+      </div>
+      {hidden > 0 && (
+        <button className="btn-viewall" onClick={() => setShowAll((s) => !s)}>
+          {showAll ? 'Show fewer words' : 'View all words'}
+        </button>
+      )}
+    </>
+  )
+}
+
+function DuelColumn({ name, words, count, score, limit, align, winner }) {
+  const shown = limit === Infinity ? words : words.slice(0, limit)
+  const more = words.length - shown.length
+  return (
+    <div className={`duel-col ${align} ${winner ? 'winner' : ''}`}>
+      <span className="duel-name">{name}</span>
+      <div className="duel-head">
+        <span className="duel-words">WORDS: {count}</span>
+        <span className="duel-score">SCORE: {score}</span>
+      </div>
+      <div className="duel-list">
+        {shown.map((f) => (
+          <div className="duel-row" key={f.word}>
+            <span className="found-chip">{f.word}</span>
+            <span className="duel-pts">{f.points}</span>
+          </div>
+        ))}
+        {shown.length === 0 && <p className="found-empty">No words</p>}
+        {more > 0 && <p className="duel-more">({more} more)</p>}
+      </div>
     </div>
   )
 }

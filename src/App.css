@@ -40,6 +40,25 @@
   line-height: 1.05;
 }
 
+.end-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid #8a2030;
+  background: #2a1218;
+  color: #f08090;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  transition: transform 0.05s ease, background 0.1s ease;
+}
+
+.end-btn:active {
+  transform: scale(0.95);
+  background: #3a1820;
+}
+
 .header-stats .words {
   font-size: 15px;
   font-weight: 600;
@@ -127,10 +146,64 @@
   100% { transform: translateY(-34px); opacity: 0; }
 }
 
+/* ===== Per-length word goals ===== */
+.goals {
+  width: min(90vw, 380px);
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0 2px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.goals::-webkit-scrollbar {
+  display: none;
+}
+
+.goal {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  background: #1f2030;
+  border: 1px solid #3c3f52;
+  border-radius: 12px;
+  padding: 5px 11px;
+}
+
+.goal-len {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #6a76a0;
+  white-space: nowrap;
+}
+
+.goal-count {
+  font-size: 15px;
+  font-weight: 700;
+  color: #c8d4ea;
+}
+
+.goal.done {
+  background: #15281e;
+  border-color: var(--start-green);
+}
+.goal.done .goal-len {
+  color: #5aa982;
+}
+.goal.done .goal-count {
+  color: #5fd4a0;
+}
+
 /* ===== Board ===== */
 .board-frame {
   position: relative;
-  width: min(90vw, 380px, calc((100dvh - 250px)));
+  width: min(90vw, 380px, calc((100dvh - 300px)));
   aspect-ratio: 1 / 1;
   margin-top: 4px;
   flex-shrink: 0;
@@ -306,6 +379,167 @@
 
 .mini-hole {
   visibility: hidden;
+}
+
+/* ===== Home mode select ===== */
+.mode-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode-tile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  border: 2px solid #2e3040;
+  background: #1f2030;
+  border-radius: 16px;
+  padding: 16px;
+  transition: border-color 0.1s ease, background 0.1s ease, transform 0.05s ease;
+}
+
+.mode-tile:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.mode-tile:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.mode-tile-icon {
+  font-size: 34px;
+  flex-shrink: 0;
+}
+
+.mode-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mode-tile-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #dde3f0;
+}
+
+.mode-tile-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9da8be;
+  line-height: 1.3;
+}
+
+.btn-back {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  color: #6a76a0;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 0;
+}
+
+/* ===== Quiz modes (Flag Match, etc.) ===== */
+.quiz-screen {
+  width: 100%;
+  max-width: 430px;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+.quiz-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quiz-top .timer-pill {
+  margin: 0;
+  align-self: auto;
+}
+
+.quiz-score {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--header-text);
+}
+
+.quiz-progress {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #6a76a0;
+  margin-top: 8px;
+}
+
+.quiz-flag {
+  font-size: clamp(96px, 32vw, 150px);
+  line-height: 1.05;
+  text-align: center;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+}
+
+.quiz-prompt {
+  font-size: 14px;
+  font-weight: 600;
+  color: #9da8be;
+  margin-top: -2px;
+}
+
+.quiz-choices {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.quiz-choice {
+  width: 100%;
+  text-align: center;
+  border: 2px solid #2e3040;
+  background: #1f2030;
+  color: #dde3f0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 15px 16px;
+  border-radius: 14px;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.05s ease;
+}
+
+.quiz-choice:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.quiz-choice:disabled {
+  cursor: default;
+}
+
+.quiz-choice.right {
+  border-color: var(--start-green);
+  background: #15281e;
+  color: #aef0cf;
+}
+
+.quiz-choice.wrong {
+  border-color: #8a2030;
+  background: #2a1218;
+  color: #f0a0ac;
 }
 
 /* ===== Game-mode (map shape) selector ===== */
@@ -639,6 +873,170 @@
   margin-left: 5px;
 }
 
+.word-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.word-col-head {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6a76a0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.found-empty {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a4f66;
+}
+
+/* ===== Head-to-head challenge results (GamePigeon-style) ===== */
+.compare-card {
+  gap: 14px;
+}
+
+.outcome {
+  align-self: center;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #2a2300;
+  background: #ffd23f;
+  padding: 12px 34px;
+  border-radius: 18px;
+  box-shadow: 0 5px 0 #d9a800;
+}
+.outcome.lost {
+  color: #fff;
+  background: #d06070;
+  box-shadow: 0 5px 0 #a8475a;
+}
+.outcome.tie {
+  color: #e7ecf6;
+  background: #3a7bd5;
+  box-shadow: 0 5px 0 #2c5fa8;
+}
+
+.duel {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.duel-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.duel-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--header-text);
+}
+.duel-col.right .duel-name {
+  text-align: right;
+}
+.duel-col.winner .duel-name {
+  color: #ffd23f;
+  text-shadow: 0 0 14px rgba(255, 210, 63, 0.6);
+}
+
+.duel-head {
+  background: #f2f4fa;
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.duel-col.right .duel-head {
+  text-align: right;
+}
+.duel-col.winner .duel-head {
+  box-shadow: 0 0 0 2px #ffd23f;
+}
+.duel-words {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a4f66;
+}
+.duel-score {
+  font-size: 22px;
+  font-weight: 800;
+  color: #14161f;
+}
+
+.duel-list {
+  background: #16171e;
+  border: 1px solid #2e3040;
+  border-radius: 14px;
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.duel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.duel-col.right .duel-row {
+  flex-direction: row-reverse;
+}
+
+.duel-row .found-chip {
+  font-size: 13px;
+  padding: 4px 9px;
+}
+
+.duel-pts {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-text);
+}
+
+.duel-more {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6a76a0;
+  text-align: center;
+}
+.duel-col.right .duel-more {
+  text-align: center;
+}
+
+.btn-viewall {
+  align-self: center;
+  border: none;
+  background: #fff;
+  color: #14161f;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 12px 28px;
+  border-radius: 16px;
+  box-shadow: 0 4px 0 #c7ccd8;
+}
+.btn-viewall:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #c7ccd8;
+}
+
 /* ===== Challenge / share controls ===== */
 .card h1.win {
   color: #5fd4a0;
@@ -700,51 +1098,3 @@
   word-break: break-all;
 }
 
-/* ===== Versus comparison ===== */
-.versus {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-
-.vs-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 12px 8px;
-  border-radius: 16px;
-  background: #1f2030;
-  border: 1px solid #2e3040;
-}
-
-.vs-col.winner {
-  background: #182838;
-  box-shadow: inset 0 0 0 2px #4a8fd4;
-}
-
-.vs-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6a76a0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vs-score {
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--header-text);
-  line-height: 1;
-}
-
-.vs-x {
-  font-size: 15px;
-  font-weight: 600;
-  color: #6a76a0;
-}

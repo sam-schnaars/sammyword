@@ -84,6 +84,46 @@ const LETTER_BAG = (() => {
 
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U'])
 
+// Every board must anchor at least this many vowels in its "core" (the cells
+// nearest the centroid). The core is the most-connected part of the board, so
+// loading it with vowels is the surest guarantee that the board is solvable.
+const CENTER_MIN_VOWELS = 2
+
+// The playable cells nearest the board's centroid, closest first.
+function centerIndices(map, count = 4) {
+  const cells = []
+  for (let i = 0; i < map.mask.length; i++) {
+    if (map.mask[i]) cells.push([i, Math.floor(i / map.cols), i % map.cols])
+  }
+  if (cells.length === 0) return []
+  const cr = cells.reduce((s, c) => s + c[1], 0) / cells.length
+  const cc = cells.reduce((s, c) => s + c[2], 0) / cells.length
+  const d2 = (c) => (c[1] - cr) ** 2 + (c[2] - cc) ** 2
+  cells.sort((a, b) => d2(a) - d2(b))
+  return cells.slice(0, Math.min(count, cells.length)).map((c) => c[0])
+}
+
+function centerVowelCount(board, center) {
+  let n = 0
+  for (const i of center) if (board[i] != null && VOWELS.has(board[i])) n++
+  return n
+}
+
+// Force the core to hold at least CENTER_MIN_VOWELS vowels, overwriting
+// non-vowel core cells (closest-to-center first). Only used on the degenerate
+// fallback path, so a board is always returned with a vowel-rich core.
+function ensureCenterVowels(board, center, rng) {
+  let have = centerVowelCount(board, center)
+  for (const i of center) {
+    if (have >= CENTER_MIN_VOWELS) break
+    if (board[i] != null && !VOWELS.has(board[i])) {
+      board[i] = 'AEIOU'[Math.floor(rng() * 5)]
+      have++
+    }
+  }
+  return board
+}
+
 // Seeded PRNG so the "Map of the Day" is identical for everyone on a given day.
 function mulberry32(seed) {
   return function () {
@@ -165,13 +205,16 @@ function fillBoard(map, pick) {
 // Pass a seeded `rng` for a deterministic board.
 //
 // Guardrails: every board must clear a vowel band (so it's neither consonant
-// soup nor all vowels) AND, when a solver `trie` is supplied, be provably
-// "fun" — yielding at least `minLong` words of length >= 5 and `minMid` words
-// of length 4. We retry up to `attempts` times, keeping the closest board as a
-// fallback if no attempt fully qualifies (so generation always returns).
+// soup nor all vowels), hold at least CENTER_MIN_VOWELS vowels in its core (the
+// surest guarantee of a solvable board), AND, when a solver `trie` is supplied,
+// be provably "fun" — yielding at least `minLong` words of length >= 5 and
+// `minMid` words of length 4. We retry up to `attempts` times, keeping the
+// closest board as a fallback if no attempt fully qualifies (so generation
+// always returns).
 export function generateBoard(map, rng = Math.random, opts = {}) {
   const { trie = null, minLong = 2, minMid = 3, attempts = 150 } = opts
   const pick = () => LETTER_BAG[Math.floor(rng() * LETTER_BAG.length)]
+  const center = centerIndices(map)
 
   let fallback = null
   let fallbackScore = -1
@@ -180,12 +223,14 @@ export function generateBoard(map, rng = Math.random, opts = {}) {
     const active = board.filter((c) => c != null).length
     if (active === 0) return board
 
-    // Cheap pre-filter: skip the solver on lopsided vowel boards.
+    // Cheap pre-filter: skip the solver on lopsided vowel boards or boards whose
+    // core lacks vowels.
     const vowels = board.filter((c) => c != null && VOWELS.has(c)).length
     const ratio = vowels / active
     if (ratio < 0.3 || ratio > 0.6) continue
+    if (centerVowelCount(board, center) < CENTER_MIN_VOWELS) continue
 
-    if (!trie) return board // no solver available — vowel band is the only gate
+    if (!trie) return board // no solver available — vowel bands are the only gate
 
     const words = solveBoard(board, map.cols, trie)
     let long = 0
@@ -203,7 +248,9 @@ export function generateBoard(map, rng = Math.random, opts = {}) {
       fallback = board
     }
   }
-  return fallback || fillBoard(map, pick)
+  // Fallbacks already cleared the core-vowel gate; the last-resort raw fill may
+  // not, so force its core to guarantee the property holds either way.
+  return fallback || ensureCenterVowels(fillBoard(map, pick), center, rng)
 }
 
 // Deterministic board for the given day (same letters for every player).

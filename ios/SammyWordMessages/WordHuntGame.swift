@@ -21,6 +21,9 @@ final class WordHuntGame: ObservableObject {
     @Published private(set) var isOver: Bool = false
     /// Briefly set to the word just scored, for a "+points" flourish.
     @Published private(set) var lastScored: FoundWord?
+    /// How many words of each length the board can yield — the checklist players
+    /// chase. Filled asynchronously when a round starts (solving is off-main).
+    @Published private(set) var possibleByLength: [Int: Int] = [:]
 
     private let dictionary: WordDictionary
     private var timer: AnyCancellable?
@@ -34,7 +37,7 @@ final class WordHuntGame: ObservableObject {
     // MARK: - Derived
 
     var currentWord: String {
-        path.map { board.tiles[$0].letter }.joined()
+        path.compactMap { board.letter(at: $0) }.joined()
     }
 
     var isCurrentWordValid: Bool {
@@ -45,6 +48,13 @@ final class WordHuntGame: ObservableObject {
     var isCurrentWordDuplicate: Bool {
         let w = currentWord
         return w.count >= 3 && dictionary.contains(w) && foundSet.contains(w)
+    }
+
+    /// How many words of each length the player has found so far.
+    var foundByLength: [Int: Int] {
+        var counts: [Int: Int] = [:]
+        for f in foundWords { counts[f.word.count, default: 0] += 1 }
+        return counts
     }
 
     // MARK: - Lifecycle
@@ -58,7 +68,24 @@ final class WordHuntGame: ObservableObject {
         timeRemaining = Self.roundSeconds
         isOver = false
         lastScored = nil
+        possibleByLength = [:]
+        computePossibleCounts(for: board)
         startTimer()
+    }
+
+    /// Solve the board off the main thread and bucket the results by length,
+    /// then publish — dropping the result if the board has since changed.
+    private func computePossibleCounts(for board: GameBoard) {
+        let dictionary = self.dictionary
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let words = BoardGenerator.solve(board: board, dictionary: dictionary)
+            var counts: [Int: Int] = [:]
+            for w in words { counts[w.count, default: 0] += 1 }
+            DispatchQueue.main.async {
+                guard let self, self.board == board else { return }
+                self.possibleByLength = counts
+            }
+        }
     }
 
     func startNewRandom() {
@@ -91,12 +118,12 @@ final class WordHuntGame: ObservableObject {
     // MARK: - Selection
 
     func beginSelection(at index: Int) {
-        guard !isOver, board.tiles.indices.contains(index) else { return }
+        guard !isOver, board.isActive(index) else { return }
         path = [index]
     }
 
     func extendSelection(to index: Int) {
-        guard !isOver, board.tiles.indices.contains(index) else { return }
+        guard !isOver, board.isActive(index) else { return }
         guard let last = path.last else {
             path = [index]
             return
@@ -107,7 +134,7 @@ final class WordHuntGame: ObservableObject {
             return
         }
         if index == last || path.contains(index) { return }
-        if !GameBoard.adjacent(last, index) { return }
+        if !GameBoard.adjacent(last, index, cols: board.map.cols) { return }
         path.append(index)
     }
 

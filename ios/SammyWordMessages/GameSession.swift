@@ -14,13 +14,13 @@ final class GameSession: ObservableObject {
     /// Current presentation style of the extension.
     @Published var presentation: Presentation = .compact
 
-    /// The challenge decoded from a tapped message, if the extension was opened
-    /// from one. `nil` means "start a fresh game."
-    @Published var incoming: GamePayload?
+    /// The challenge decoded from a tapped message (Word Hunt or Flag Match), if
+    /// the extension was opened from one. `nil` means "start fresh."
+    @Published var incoming: DecodedGame?
 
     /// Ask the host to grow to the expanded presentation.
     var requestExpand: () -> Void = {}
 
-    /// Compose and insert a message carrying `payload` with the given caption.
-    var sendResult: (_ payload: GamePayload, _ caption: String) -> Void = { _, _ in }
+    /// Compose and insert a message carrying `game` with the given caption.
+    var send: (_ game: DecodedGame, _ caption: String) -> Void = { _, _ in }
 }
