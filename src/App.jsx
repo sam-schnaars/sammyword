@@ -86,7 +86,7 @@ export default function App() {
   const draggingRef = useRef(false)
 
   useEffect(() => {
-    fetch('/words.txt')
+    fetch(`${import.meta.env.BASE_URL}words.txt`)
       .then((r) => r.text())
       .then((t) => setDictionary(new Set(t.split('\n').map((w) => w.trim()).filter(Boolean))))
       .catch(() => setDictionary(new Set()))
