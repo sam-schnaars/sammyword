@@ -14,13 +14,31 @@ final class GameSession: ObservableObject {
     /// Current presentation style of the extension.
     @Published var presentation: Presentation = .compact
 
-    /// The challenge decoded from a tapped message (Word Hunt or Flag Match), if
+    /// The challenge decoded from a tapped message (Word Hunt, Flag Match, or Deep Cut), if
     /// the extension was opened from one. `nil` means "start fresh."
     @Published var incoming: DecodedGame?
+
+    /// Which game to deep-jump into. The compact bar offers both modes directly,
+    /// so a tap there sets this and expands; `ExpandedView` consumes it on appear.
+    enum LaunchMode { case wordHunt, flagMatch, deepCut }
+    var launchMode: LaunchMode?
+
+    /// Pick a mode from the compact bar: remember it, then expand into it.
+    func launch(_ mode: LaunchMode) {
+        launchMode = mode
+        requestExpand()
+    }
 
     /// Ask the host to grow to the expanded presentation.
     var requestExpand: () -> Void = {}
 
+    /// Ask the host to shrink to the compact bar, surfacing any staged message
+    /// next to the Messages send arrow (GamePigeon-style "ready to send").
+    var requestCollapse: () -> Void = {}
+
     /// Compose and insert a message carrying `game` with the given caption.
-    var send: (_ game: DecodedGame, _ caption: String) -> Void = { _, _ in }
+    /// `collapse` asks the host to shrink to the compact bar afterward (so the
+    /// staged message is ready to send); pass `false` to keep the current
+    /// presentation, e.g. when auto-staging while the results screen is still up.
+    var send: (_ game: DecodedGame, _ caption: String, _ collapse: Bool) -> Void = { _, _, _ in }
 }

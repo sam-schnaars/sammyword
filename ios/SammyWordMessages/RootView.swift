@@ -18,34 +18,71 @@ struct RootView: View {
     }
 }
 
-/// The small bar shown above the keyboard — a single "tap to play" affordance.
+/// The small bar shown above the keyboard. On a fresh open it offers both games
+/// directly; if opened from a challenge, it's a single "tap to play" affordance.
 struct CompactView: View {
     @ObservedObject var session: GameSession
 
     var body: some View {
-        Button { session.requestExpand() } label: {
-            VStack(spacing: 4) {
-                Text("Sammy Word")
-                    .font(Theme.rounded(26, .heavy))
-                Text(subtitle)
-                    .font(Theme.rounded(15, .medium))
-                    .opacity(0.9)
+        if let subtitle = challengeSubtitle {
+            Button { session.requestExpand() } label: {
+                VStack(spacing: 4) {
+                    Text("Sammy Word")
+                        .font(Theme.rounded(26, .heavy))
+                    Text(subtitle)
+                        .font(Theme.rounded(15, .medium))
+                        .opacity(0.9)
+                }
+                .foregroundColor(Theme.onBackground)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
             }
-            .foregroundColor(Theme.onBackground)
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 12) {
+                gameButton(emoji: "🔤", title: "Word Hunt") { session.launch(.wordHunt) }
+                gameButton(emoji: "🚩", title: "Flag Match") { session.launch(.flagMatch) }
+                gameButton(emoji: "💎", title: "Deep Cut") { session.launch(.deepCut) }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func gameButton(emoji: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(emoji).font(.system(size: 24))
+                Text(title)
+                    .font(Theme.rounded(16, .bold))
+                    .foregroundColor(Theme.headerText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Theme.panelBorder, lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 
-    private var subtitle: String {
+    /// Non-nil only when opened from a tapped challenge — then we keep the simple
+    /// single-tap bar that deep-jumps into that challenge.
+    private var challengeSubtitle: String? {
         switch session.incoming {
         case let .wordHunt(p) where p.isChallenge:
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
         case let .flagMatch(p) where p.isChallenge:
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
+        case let .deepCut(p) where p.isChallenge:
+            return "\(p.challengerName ?? "A friend") challenged you — tap to play"
         default:
-            return "Tap to play"
+            return nil
         }
     }
 }
@@ -55,7 +92,7 @@ struct ExpandedView: View {
     @ObservedObject var session: GameSession
     @StateObject private var game = WordHuntGame()
 
-    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch }
+    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch, deepCut }
     @State private var screen: Screen = .modePicker
     @State private var dailyKey: String?            // non-nil while playing the daily board
     @State private var wordChallenge: GamePayload?  // incoming Word Hunt challenge, if any
@@ -67,7 +104,8 @@ struct ExpandedView: View {
             case .modePicker:
                 ModePicker(
                     onWordHunt: { screen = .wordHome },
-                    onFlags: { wordChallenge = nil; dailyKey = nil; screen = .flagMatch }
+                    onFlags: { wordChallenge = nil; dailyKey = nil; screen = .flagMatch },
+                    onDeep: { wordChallenge = nil; dailyKey = nil; screen = .deepCut }
                 )
             case .wordHome:
                 WordHuntHome(onMap: startMap, onDaily: startDaily, onBack: { screen = .modePicker })
@@ -91,6 +129,12 @@ struct ExpandedView: View {
                     session: session,
                     onHome: { screen = .modePicker }
                 )
+            case .deepCut:
+                DeepCutView(
+                    challenge: incomingDeepChallenge,
+                    session: session,
+                    onHome: { screen = .modePicker }
+                )
             }
         }
         .onAppear(perform: begin)
@@ -98,6 +142,11 @@ struct ExpandedView: View {
 
     private var incomingFlagChallenge: FlagPayload? {
         if case let .flagMatch(p) = session.incoming, p.isChallenge { return p }
+        return nil
+    }
+
+    private var incomingDeepChallenge: DeepCutPayload? {
+        if case let .deepCut(p) = session.incoming, p.isChallenge { return p }
         return nil
     }
 
@@ -112,7 +161,17 @@ struct ExpandedView: View {
             screen = .wordPlaying
         } else if incomingFlagChallenge != nil {
             screen = .flagMatch
+        } else if incomingDeepChallenge != nil {
+            screen = .deepCut
+        } else if let mode = session.launchMode {
+            // Opened fresh and the player picked a game from the compact bar.
+            switch mode {
+            case .wordHunt: screen = .wordHome
+            case .flagMatch: screen = .flagMatch
+            case .deepCut: screen = .deepCut
+            }
         }
+        session.launchMode = nil
     }
 
     /// Generate a guaranteed-solvable board for the chosen map off the main
@@ -150,6 +209,7 @@ struct ExpandedView: View {
 struct ModePicker: View {
     let onWordHunt: () -> Void
     let onFlags: () -> Void
+    let onDeep: () -> Void
 
     var body: some View {
         ScrollView {
@@ -168,6 +228,9 @@ struct ModePicker: View {
                 modeTile(icon: "🚩", title: "Flag Match",
                          sub: "Match each flag to its country against the clock",
                          action: onFlags)
+                modeTile(icon: "💎", title: "Deep Cut",
+                         sub: "Name something — the more obscure your answer, the more it scores",
+                         action: onDeep)
             }
             .padding(20)
         }
@@ -353,6 +416,14 @@ struct WordHuntOverView: View {
 
     @State private var name = DailyStore.playerName
     @State private var sent = false
+    @State private var didAutoStage = false
+    @State private var nameEdited = false
+    @State private var collapseTask: DispatchWorkItem?
+
+    /// A fresh round started to challenge someone (not a reply, not the daily).
+    /// Only these get the GamePigeon-style auto-stage + auto-collapse; the daily
+    /// keeps its results up so the leaderboard stays readable.
+    private var firstTurnChallenge: Bool { challenge == nil && dailyKey == nil }
 
     private var theirWords: [FoundWord] {
         (challenge?.challengerWords ?? []).map {
@@ -394,7 +465,16 @@ struct WordHuntOverView: View {
                 }
 
                 NameField(name: $name)
-                sendButton
+                    .onChange(of: name) { _ in
+                        // Personalizing the challenge cancels the auto-collapse
+                        // and brings the button back so they can re-stage by name.
+                        guard firstTurnChallenge else { return }
+                        nameEdited = true
+                        collapseTask?.cancel()
+                    }
+                if !firstTurnChallenge || nameEdited {
+                    sendButton
+                }
 
                 Button(action: onNewGame) {
                     Text("New board")
@@ -414,7 +494,26 @@ struct WordHuntOverView: View {
         }
         .onAppear {
             if let day = dailyKey { DailyStore.saveBest(day, game.score) }
+            autoStageIfFirstTurn()
         }
+    }
+
+    /// On the opening turn (not a reply to someone's challenge), stage the
+    /// challenge message into the Messages input the moment results appear. For
+    /// a fresh challenge round we then briefly show the score and auto-collapse
+    /// to the compact bar, dropping the player right at the staged message + send
+    /// arrow — the GamePigeon feel. (iOS gives no API to actually send; the user
+    /// always taps that final arrow.) The daily only stages, so its leaderboard
+    /// stays up.
+    private func autoStageIfFirstTurn() {
+        guard challenge == nil, !didAutoStage else { return }
+        didAutoStage = true
+        send(collapse: false, markSent: false)
+
+        guard firstTurnChallenge else { return }
+        let task = DispatchWorkItem { session.requestCollapse() }
+        collapseTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3, execute: task)
     }
 
     private var sendLabel: String {
@@ -422,7 +521,7 @@ struct WordHuntOverView: View {
     }
 
     private var sendButton: some View {
-        Button(action: send) {
+        Button(action: { send() }) {
             Text(sent ? "Sent! ✓" : sendLabel)
                 .font(Theme.rounded(20, .bold))
                 .foregroundColor(.white)
@@ -439,7 +538,7 @@ struct WordHuntOverView: View {
         .padding(.horizontal, 24)
     }
 
-    private func send() {
+    private func send(collapse: Bool = true, markSent: Bool = true) {
         let finalName = name.trimmingCharacters(in: .whitespaces)
         DailyStore.playerName = finalName
         let payload = GamePayload(
@@ -449,8 +548,8 @@ struct WordHuntOverView: View {
             challengerName: finalName.isEmpty ? "Me" : finalName,
             challengerWords: game.foundWords.map { $0.word }
         )
-        session.send(.wordHunt(payload), "Sammy Word — beat my \(game.score)?")
-        sent = true
+        session.send(.wordHunt(payload), "Sammy Word — beat my \(game.score)?", collapse)
+        if markSent { sent = true }
     }
 }
 
@@ -706,22 +805,75 @@ struct NameField: View {
     }
 }
 
-/// Wrapping grid of found-word chips.
+/// Wrapping flow of found-word chips. Each chip hugs its own content (word +
+/// points) so the word never wraps to a second line and never overflows the
+/// capsule — chips just wrap onto the next row when they run out of width.
 struct FlowChips: View {
     let words: [FoundWord]
     var body: some View {
-        let columns = [GridItem(.adaptive(minimum: 76), spacing: 8)]
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+        FlowLayout(spacing: 8) {
             ForEach(words) { fw in
                 HStack(spacing: 5) {
                     Text(fw.word == "QU" ? "Qu" : fw.word.replacingOccurrences(of: "QU", with: "Qu"))
                         .font(Theme.rounded(14, .bold))
+                        .lineLimit(1)
                     Text("\(fw.points)").font(Theme.rounded(11, .semibold)).opacity(0.55)
+                        .lineLimit(1)
                 }
+                .fixedSize()
                 .foregroundColor(Theme.tileText)
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(Theme.tileGradient, in: Capsule())
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A simple left-to-right wrapping layout: places subviews at their natural
+/// size, moving to a new row whenever the next one won't fit the available
+/// width. Used so found-word chips hug their content instead of being forced
+/// into equal-width grid columns (which made 4-letter words wrap mid-word).
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0 && rowWidth + spacing + size.width > maxWidth {
+                totalHeight += rowHeight + spacing
+                totalWidth = max(totalWidth, rowWidth)
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+        totalHeight += rowHeight
+        totalWidth = max(totalWidth, rowWidth)
+        return CGSize(width: maxWidth.isFinite ? maxWidth : totalWidth, height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
         }
     }
 }

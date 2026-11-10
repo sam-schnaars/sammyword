@@ -25,8 +25,11 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.requestExpand = { [weak self] in
             self?.requestPresentationStyle(.expanded)
         }
-        session.send = { [weak self] game, caption in
-            self?.send(game: game, caption: caption)
+        session.requestCollapse = { [weak self] in
+            self?.requestPresentationStyle(.compact)
+        }
+        session.send = { [weak self] game, caption, collapse in
+            self?.send(game: game, caption: caption, collapse: collapse)
         }
 
         let host = UIHostingController(rootView: RootView(session: session))
@@ -72,7 +75,7 @@ final class MessagesViewController: MSMessagesAppViewController {
 
     // MARK: - Sending
 
-    private func send(game: DecodedGame, caption: String) {
+    private func send(game: DecodedGame, caption: String, collapse: Bool) {
         guard let conversation = activeConversation else { return }
 
         // Reuse the existing game's session so prior bubbles collapse (GamePigeon
@@ -87,12 +90,17 @@ final class MessagesViewController: MSMessagesAppViewController {
             layout.image = BoardImageRenderer.image(for: payload.board)
         case let .flagMatch(payload):
             layout.image = FlagImageRenderer.image(for: payload.seed)
+        case let .deepCut(payload):
+            layout.image = DeepCutImageRenderer.image(for: payload.seed)
         }
         message.layout = layout
         message.url = GameMessage.encode(game)
 
         conversation.insert(message) { _ in }
-        requestPresentationStyle(.compact)
+        // Note: Messages extensions can only *stage* a message into the input
+        // field — Apple gives no API to actually send it, so the user still taps
+        // the send arrow. Collapsing to compact surfaces that staged bubble.
+        if collapse { requestPresentationStyle(.compact) }
     }
 }
 
@@ -258,6 +266,43 @@ enum FlagImageRenderer {
                 let sz = str.size()
                 str.draw(at: CGPoint(x: centers[i].x - sz.width / 2, y: centers[i].y - sz.height / 2))
             }
+        }
+    }
+}
+
+/// Renders the message-bubble preview for a Deep Cut challenge: the round's
+/// first prompt in big type on the same near-black background, under a gem.
+enum DeepCutImageRenderer {
+    static func image(for seed: Int, size: CGFloat = 320) -> UIImage {
+        let first = DeepCut.buildRound(seed: seed).first
+        let prompt = first.map { DeepCut.prompts[$0].q } ?? "Deep Cut"
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { ctx in
+            let full = CGRect(x: 0, y: 0, width: size, height: size)
+            UIColor(hex: 0x0E0E14).setFill()
+            ctx.cgContext.fill(full)
+
+            let center = NSMutableParagraphStyle()
+            center.alignment = .center
+
+            let gem = NSAttributedString(string: "💎", attributes: [.font: UIFont.systemFont(ofSize: size * 0.2)])
+            let gs = gem.size()
+            gem.draw(at: CGPoint(x: (size - gs.width) / 2, y: size * 0.1))
+
+            let title = NSAttributedString(string: "DEEP CUT", attributes: [
+                .font: UIFont.systemFont(ofSize: size * 0.075, weight: .heavy),
+                .foregroundColor: UIColor(hex: 0xFFD23F),
+                .kern: 3,
+                .paragraphStyle: center,
+            ])
+            title.draw(in: CGRect(x: 0, y: size * 0.36, width: size, height: size * 0.1))
+
+            let body = NSAttributedString(string: prompt, attributes: [
+                .font: UIFont.systemFont(ofSize: size * 0.085, weight: .bold),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: center,
+            ])
+            body.draw(in: CGRect(x: size * 0.08, y: size * 0.52, width: size * 0.84, height: size * 0.4))
         }
     }
 }

@@ -20,11 +20,13 @@ import {
   clearChallengeFromUrl,
   loadName,
   readChallengeFromUrl,
+  readDeepChallengeFromUrl,
   readFlagChallengeFromUrl,
   saveName,
 } from './share.js'
 import { fetchLeaderboard, submitScore } from './leaderboard.js'
 import FlagMatch from './FlagMatch.jsx'
+import DeepCut from './DeepCut.jsx'
 
 const fmtTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -34,7 +36,7 @@ const pad4 = (n) => String(n).padStart(4, '0')
 // Stronger, length-scaled haptic buzz when a word scores. Web vibration only
 // fires on supporting mobile browsers (a no-op elsewhere); longer words get a
 // heavier, multi-pulse pattern for extra payoff.
-function hapticForWord(len) {
+export function hapticForWord(len) {
   if (!navigator.vibrate) return
   if (len <= 3) navigator.vibrate(45)
   else if (len === 4) navigator.vibrate(70)
@@ -63,6 +65,7 @@ export default function App() {
   // Top-level mode: the home "mode select" screen, Word Hunt, or Flag Match.
   // A challenge link deep-jumps straight into the relevant mode.
   const [appMode, setAppMode] = useState(() => {
+    if (readDeepChallengeFromUrl()) return 'deep'
     if (readFlagChallengeFromUrl()) return 'flags'
     if (readChallengeFromUrl()) return 'hunt'
     return 'menu'
@@ -71,6 +74,7 @@ export default function App() {
   // Challenge flow: a friend's map + letters + score parsed from the URL, if any.
   const [challenge, setChallenge] = useState(() => readChallengeFromUrl())
   const [flagChallenge, setFlagChallenge] = useState(() => readFlagChallengeFromUrl())
+  const [deepChallenge, setDeepChallenge] = useState(() => readDeepChallengeFromUrl())
   const [name, setName] = useState(() => loadName())
   const [shareMsg, setShareMsg] = useState('')
 
@@ -272,6 +276,7 @@ export default function App() {
           ready={dictionary != null}
           onWordHunt={() => setAppMode('hunt')}
           onFlags={() => setAppMode('flags')}
+          onDeep={() => setAppMode('deep')}
         />
       </Overlay>
     )
@@ -284,6 +289,20 @@ export default function App() {
         setName={setName}
         onHome={() => {
           setFlagChallenge(null)
+          clearChallengeFromUrl()
+          setAppMode('menu')
+        }}
+      />
+    )
+
+  if (appMode === 'deep')
+    return (
+      <DeepCut
+        challenge={deepChallenge}
+        name={name}
+        setName={setName}
+        onHome={() => {
+          setDeepChallenge(null)
           clearChallengeFromUrl()
           setAppMode('menu')
         }}
@@ -573,7 +592,7 @@ function NameRow({ name, setName }) {
 }
 
 // The home screen: pick which game mode to play.
-function ModeSelect({ ready, onWordHunt, onFlags }) {
+function ModeSelect({ ready, onWordHunt, onFlags, onDeep }) {
   return (
     <div className="card">
       <h1>Sammy Word</h1>
@@ -594,6 +613,15 @@ function ModeSelect({ ready, onWordHunt, onFlags }) {
             <span className="mode-tile-title">Flag Match</span>
             <span className="mode-tile-sub">
               Match each flag to its country against the clock
+            </span>
+          </span>
+        </button>
+        <button className="mode-tile" onClick={onDeep}>
+          <span className="mode-tile-icon">💎</span>
+          <span className="mode-tile-text">
+            <span className="mode-tile-title">Deep Cut</span>
+            <span className="mode-tile-sub">
+              Name something — the more obscure your answer, the more it scores
             </span>
           </span>
         </button>

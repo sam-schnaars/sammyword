@@ -26,6 +26,20 @@ They can **Challenge them back** on the same board to keep it going.
 The link only works where the app is hosted — for friends to play it must be
 deployed (e.g. Vercel), not just running on `localhost`.
 
+## Deep Cut
+
+A rare-answer trivia mode. Each round is 5 prompts ("Name a US state", "Name a
+noble gas"…), 20 seconds each. Type any correct answer; the more obscure it is,
+the more it scores (Common 100 → Solid 250 → Rare 500 → Deep cut! 1000). An
+answer not on the list can be retried; one typo is forgiven on longer answers.
+
+The prompt bank is `src/deepcut.json` — each answer is `"Name|alias:tier"`. The
+iOS copy at `ios/SammyWordMessages/Resources/deepcut.json` must stay
+byte-identical (`cp src/deepcut.json ios/SammyWordMessages/Resources/`).
+
+Challenges carry the round seed, score, and the sender's answers, so the friend
+plays the same prompts and the results show both answers side by side.
+
 ## Map shapes & Map of the Day
 
 The home screen has a **GAME MODE** picker with several board shapes (classic
@@ -73,6 +87,7 @@ npm run build    # production build to dist/
 - `src/App.jsx` — game UI, drag selection, timer, scoring, screens.
 - `src/board.js` — board generation (Boggle dice), adjacency, score table.
 - `src/share.js` — encode/decode a challenge (board + score + name) to/from a URL.
+- `src/deepcut.js` / `src/DeepCut.jsx` / `src/deepcut.json` — Deep Cut logic, UI, and prompt bank.
 - `src/App.css` / `src/index.css` — Game Pigeon styling.
 - `public/words.txt` — dictionary for word validation (filtered system word list),
   fetched at runtime.

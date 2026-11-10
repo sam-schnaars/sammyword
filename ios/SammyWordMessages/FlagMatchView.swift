@@ -13,6 +13,9 @@ struct FlagMatchView: View {
     @State private var phase: Phase = .intro
     @State private var name = DailyStore.playerName
     @State private var sent = false
+    @State private var didAutoStage = false
+    @State private var nameEdited = false
+    @State private var collapseTask: DispatchWorkItem?
 
     var body: some View {
         Group {
@@ -133,10 +136,19 @@ struct FlagMatchView: View {
                     .font(Theme.rounded(15, .medium)).foregroundColor(Theme.mutedText)
 
                 NameField(name: $name)
-                primaryButton(sent ? "Sent! ✓" : (challenge != nil ? "Send result & rematch" : "Challenge a friend")) {
-                    if !sent { send() }
+                    .onChange(of: name) { _ in
+                        // Personalizing the challenge cancels the auto-collapse
+                        // and brings the button back so they can re-stage by name.
+                        guard challenge == nil else { return }
+                        nameEdited = true
+                        collapseTask?.cancel()
+                    }
+                if challenge != nil || nameEdited {
+                    primaryButton(sent ? "Sent! ✓" : (challenge != nil ? "Send result & rematch" : "Challenge a friend")) {
+                        if !sent { send() }
+                    }
+                    .opacity(sent ? 0.6 : 1)
                 }
-                .opacity(sent ? 0.6 : 1)
 
                 Button { start(seed: nil) } label: {
                     Text("Play again").font(Theme.rounded(16, .semibold)).foregroundColor(Theme.mutedText).underline()
@@ -147,6 +159,23 @@ struct FlagMatchView: View {
             }
             .padding(20)
         }
+        .onAppear(perform: autoStageIfFirstTurn)
+    }
+
+    /// Opening turn (not replying to a challenge): stage the result into the
+    /// Messages input the moment the game ends, then briefly show the score and
+    /// auto-collapse to the compact bar — dropping the player at the staged
+    /// message + send arrow, GamePigeon-style. (iOS gives no API to actually
+    /// send; the user always taps that final arrow.) Editing the name cancels
+    /// the collapse so they can personalize and re-stage.
+    private func autoStageIfFirstTurn() {
+        guard challenge == nil, !didAutoStage else { return }
+        didAutoStage = true
+        send(collapse: false, markSent: false)
+
+        let task = DispatchWorkItem { session.requestCollapse() }
+        collapseTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3, execute: task)
     }
 
     private func scoreColumn(name: String, score: Int, winner: Bool) -> some View {
@@ -177,11 +206,14 @@ struct FlagMatchView: View {
 
     private func start(seed: Int?) {
         sent = false
+        didAutoStage = false
+        nameEdited = false
+        collapseTask?.cancel()
         game.start(seed: seed ?? Flags.randomSeed())
         phase = .playing
     }
 
-    private func send() {
+    private func send(collapse: Bool = true, markSent: Bool = true) {
         let finalName = name.trimmingCharacters(in: .whitespaces)
         DailyStore.playerName = finalName
         let payload = FlagPayload(
@@ -189,8 +221,8 @@ struct FlagMatchView: View {
             challengerScore: game.score,
             challengerName: finalName.isEmpty ? "Me" : finalName
         )
-        session.send(.flagMatch(payload), "Flag Match — beat my \(game.score)?")
-        sent = true
+        session.send(.flagMatch(payload), "Flag Match — beat my \(game.score)?", collapse)
+        if markSent { sent = true }
     }
 
     private func timeString(_ s: Int) -> String {

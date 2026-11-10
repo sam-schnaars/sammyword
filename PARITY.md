@@ -19,8 +19,8 @@ on each side. This file is the contract that keeps them in sync.
 | --- | --- | --- | --- |
 | Word Hunt (drag-to-spell, 80s timer, scoring) | `App.jsx`, `board.js` | `WordHuntGame.swift`, `GameView.swift`, `GameBoard.swift`, `Scoring.swift` | ✅ both |
 | Board shapes (classic/donut/plus/diamond/heart) | `board.js` (`MAPS`, `HEART`) | `GameBoard.swift` (`GameMap.all`) | ✅ both |
-| Guaranteed-solvable boards (vowel band + ≥2 core vowels + solver gate) | `board.js` (`generateBoard`) | `BoardGenerator.swift` | ✅ both |
-| Dictionary + board solver | `board.js` (`buildTrie`/`solveBoard`), `public/words.txt` | `WordDictionary.swift`, `BoardGenerator.solve`, `Resources/words.txt` | ✅ both |
+| Guaranteed-"fun" boards (vowel band + ≥2 core vowels + solver gate: ≥8 words len ≥5 & ≥12 words len 4) | `board.js` (`generateBoard`, `minLong=8`/`minMid=12`) | `BoardGenerator.swift` (`minLong=8`/`minMid=12`) | ✅ both |
+| Dictionary + board solver (curated ~57k common-word list, byte-identical both sides) | `board.js` (`buildTrie`/`solveBoard`), `public/words.txt` | `WordDictionary.swift`, `BoardGenerator.solve`, `Resources/words.txt` | ✅ both |
 | Stronger, length-scaled haptics | `App.jsx` (`hapticForWord`) | `Haptics.swift` | ✅ both |
 | Challenge a friend (Word Hunt) | `share.js`, `App.jsx` | `GameMessage.swift`, `RootView.swift` | ✅ both |
 | Challenge carries both players' words | `share.js` (`w`), `App.jsx` | `GameMessage.swift` (`cw`), `RootView.swift` | ✅ both |
@@ -30,7 +30,9 @@ on each side. This file is the contract that keeps them in sync.
 | Global leaderboard (Redis) | `api/leaderboard.js`, `src/leaderboard.js`, `App.jsx` (`Leaderboard`) | `Leaderboard.swift`, `RootView.swift` | ✅ both |
 | Flag Match (timed flag→country quiz) | `flags.js`, `FlagMatch.jsx` | `Flags.swift`, `FlagMatchGame.swift`, `FlagMatchView.swift` | ✅ both |
 | Flag Match challenge (seeded quiz + score) | `share.js` (`#f=`) | `GameMessage.swift` (`g=f`) | ✅ both |
-| Mode picker (Word Hunt vs Flag Match) | `App.jsx` (`ModeSelect`) | `RootView.swift` (`ModePicker`) | ✅ both |
+| Deep Cut (rare-answer trivia: 5 typed prompts × 20s, rarer correct answers score more, 1-typo forgiveness) | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json` | `DeepCut.swift`, `DeepCutGame.swift`, `DeepCutView.swift`, `Resources/deepcut.json` (byte-identical) | ✅ both |
+| Deep Cut challenge (seeded prompts + score + sender's answers, head-to-head recap) | `share.js` (`#d=`) | `GameMessage.swift` (`g=d`, `ds/cs/cn/ca`) | ✅ both |
+| Mode picker (Word Hunt / Flag Match / Deep Cut) | `App.jsx` (`ModeSelect`) | `RootView.swift` (`ModePicker`, compact bar) | ✅ both |
 
 ## Known gaps / platform differences
 
@@ -42,7 +44,19 @@ on each side. This file is the contract that keeps them in sync.
 - **Challenge transport.** Web encodes challenges in the URL hash (`#c=`/`#f=`)
   for share-sheet/clipboard links. iOS encodes the same data in an `MSMessage`
   URL (query params `m/b/cs/cn/cw` for Word Hunt, `g=f` + `fs/cs/cn` for Flag
-  Match). The payload fields are equivalent; only the container differs.
+  Match, `g=d` + `ds/cs/cn/ca` for Deep Cut). The payload fields are equivalent; only the container differs.
+- **Auto-stage + auto-collapse on first turn (iOS only).** When a fresh
+  challenge round ends (not a reply, and not the daily), the iOS results screen
+  *stages* the challenge message into the Messages input, shows the score for a
+  beat, then auto-collapses to the compact bar so the player lands on the staged
+  message + native send arrow — the GamePigeon feel (`RootView.swift` /
+  `FlagMatchView.swift` → `autoStageIfFirstTurn`, via `GameSession.requestCollapse`).
+  Apple gives extensions no API to actually send, so the final send-arrow tap is
+  always the user's. Editing the name cancels the auto-collapse and restores the
+  "Challenge a friend" button to re-stage by name. The daily round only stages
+  (no collapse) so its leaderboard stays readable. The web has no compose field
+  to stage into, so it keeps its manual share button — an intentional platform
+  difference, not a gap.
 - **Daily determinism is per-platform.** Both use the same seeded `mulberry32`
   + `hashStr('sammyword-' + UTC-day)` algorithm and the same letter bag, so a
   given day yields the same board within a platform. Cross-platform identical
@@ -51,6 +65,6 @@ on each side. This file is the contract that keeps them in sync.
 
 ## Scoring tables (must match)
 
-| Letters | Points | Flag Match |
-| --- | --- | --- |
-| 3 → 100, 4 → 400, 5 → 800, 6 → 1400, 7 → 1800, 8+ → 2200 | | +100 per correct answer |
+| Letters | Points | Flag Match | Deep Cut (tier → points, from `deepcut.json`) |
+| --- | --- | --- | --- |
+| 3 → 100, 4 → 400, 5 → 800, 6 → 1400, 7 → 1800, 8+ → 2200 | | +100 per correct answer | Common 100, Solid 250, Rare 500, Deep cut! 1000; miss/timeout 0 |

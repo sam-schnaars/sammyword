@@ -40,9 +40,9 @@ enum Theme {
 
     // Current-word bubble states
     static let bubbleBg = Color(hex: 0x1A1B24)
-    static let validBubbleBg = Color(hex: 0x182A38)
-    static let validBubbleText = Color(hex: 0x7AB8F5)
-    static let validBubbleBorder = Color(hex: 0x4A8FD4)
+    static let validBubbleBg = Color(hex: 0x15281E)
+    static let validBubbleText = Color(hex: 0x5FD4A0)
+    static let validBubbleBorder = Color(hex: 0x2E7A56)
     static let dupeBubbleBg = Color(hex: 0x2A2010)
     static let dupeBubbleText = Color(hex: 0xD4A040)
     static let dupeBubbleBorder = Color(hex: 0x6A5020)

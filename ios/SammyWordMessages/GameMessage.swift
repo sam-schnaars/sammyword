@@ -44,10 +44,30 @@ struct FlagPayload: Equatable {
     var isChallenge: Bool { challengerScore != nil }
 }
 
+/// The Deep Cut state carried inside an `MSMessage.url`: the seed replays the
+/// same prompts; `challengerAnswers` are the sender's locked-in answers (one per
+/// prompt, "" for none) so the recipient sees them head-to-head.
+struct DeepCutPayload: Equatable {
+    var seed: Int
+    var challengerScore: Int?
+    var challengerName: String?
+    var challengerAnswers: [String]
+
+    init(seed: Int, challengerScore: Int? = nil, challengerName: String? = nil, challengerAnswers: [String] = []) {
+        self.seed = seed
+        self.challengerScore = challengerScore
+        self.challengerName = challengerName
+        self.challengerAnswers = challengerAnswers
+    }
+
+    var isChallenge: Bool { challengerScore != nil }
+}
+
 /// Which game a tapped message carries.
 enum DecodedGame: Equatable {
     case wordHunt(GamePayload)
     case flagMatch(FlagPayload)
+    case deepCut(DeepCutPayload)
 }
 
 enum GameMessage {
@@ -55,6 +75,7 @@ enum GameMessage {
     /// cs = challenger score, cn = challenger name.
     /// Word Hunt: m = map id, b = board (tiles joined by "-"), cw = words ("."-joined).
     /// Flag Match: fs = quiz seed.
+    /// Deep Cut (g = "d"): ds = round seed, ca = answers ("|"-joined).
     static func encode(_ game: DecodedGame) -> URL {
         var components = URLComponents()
         components.scheme = "https"
@@ -84,6 +105,18 @@ enum GameMessage {
             if let name = payload.challengerName, !name.isEmpty {
                 items.append(URLQueryItem(name: "cn", value: name))
             }
+        case let .deepCut(payload):
+            items.append(URLQueryItem(name: "g", value: "d"))
+            items.append(URLQueryItem(name: "ds", value: String(payload.seed)))
+            if let score = payload.challengerScore {
+                items.append(URLQueryItem(name: "cs", value: String(score)))
+            }
+            if let name = payload.challengerName, !name.isEmpty {
+                items.append(URLQueryItem(name: "cn", value: name))
+            }
+            if !payload.challengerAnswers.isEmpty {
+                items.append(URLQueryItem(name: "ca", value: payload.challengerAnswers.joined(separator: "|")))
+            }
         }
 
         components.queryItems = items
@@ -107,6 +140,17 @@ enum GameMessage {
         if value("g") == "f" {
             guard let seed = value("fs").flatMap({ Int($0) }) else { return nil }
             return .flagMatch(FlagPayload(seed: seed, challengerScore: score, challengerName: name))
+        }
+
+        // Deep Cut challenge.
+        if value("g") == "d" {
+            guard let seed = value("ds").flatMap({ Int($0) }) else { return nil }
+            let answers = value("ca")?
+                .split(separator: "|", omittingEmptySubsequences: false)
+                .map(String.init) ?? []
+            return .deepCut(DeepCutPayload(
+                seed: seed, challengerScore: score, challengerName: name, challengerAnswers: answers
+            ))
         }
 
         // Word Hunt (default).

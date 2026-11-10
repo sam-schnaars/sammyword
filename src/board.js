@@ -212,7 +212,7 @@ function fillBoard(map, pick) {
 // closest board as a fallback if no attempt fully qualifies (so generation
 // always returns).
 export function generateBoard(map, rng = Math.random, opts = {}) {
-  const { trie = null, minLong = 2, minMid = 3, attempts = 150 } = opts
+  const { trie = null, minLong = 8, minMid = 12, attempts = 150 } = opts
   const pick = () => LETTER_BAG[Math.floor(rng() * LETTER_BAG.length)]
   const center = centerIndices(map)
 

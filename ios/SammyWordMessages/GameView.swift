@@ -90,7 +90,7 @@ struct GameView: View {
         )
     }
 
-    /// Shows the in-progress word (plain / blue-valid / amber-duplicate), or a
+    /// Shows the in-progress word (plain / green-valid / amber-duplicate), or a
     /// floating "+points" flourish once a word is scored and the path clears.
     private var wordReadout: some View {
         ZStack {

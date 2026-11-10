@@ -20,8 +20,8 @@ enum BoardGenerator {
     static func generate(
         map: GameMap,
         dictionary: WordDictionary = .shared,
-        minLong: Int = 2,
-        minMid: Int = 3,
+        minLong: Int = 8,
+        minMid: Int = 12,
         attempts: Int = 150,
         pick: () -> String = { LetterBag.random() },
         vowelPick: () -> String = { String(["A", "E", "I", "O", "U"].randomElement() ?? "E") }
@@ -52,6 +52,12 @@ enum BoardGenerator {
                 else if w.count == 4 { mid += 1 }
             }
             if long >= minLong && mid >= minMid {
+                #if DEBUG
+                let longWords = words.filter { $0.count >= 5 }
+                    .sorted { $0.count == $1.count ? $0 < $1 : $0.count < $1.count }
+                print("[BoardGen] \(map.id): \(longWords.count) valid words of length 5+:")
+                print(longWords.joined(separator: ", "))
+                #endif
                 return board
             }
 

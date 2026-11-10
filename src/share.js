@@ -86,6 +86,40 @@ export function readFlagChallengeFromUrl() {
   return m ? decodeFlagChallenge(m[1]) : null
 }
 
+// ---- Deep Cut challenge (mode "d") ----
+// The seed replays the same prompts; `answers` are the sender's raw guesses
+// (one per prompt, "" if none) so the recipient sees them head-to-head.
+// deepChallenge: { seed: number, score: number, name: string, answers: string[] }
+export function encodeDeepChallenge({ seed, score, name, answers }) {
+  return toB64Url(
+    JSON.stringify({ d: seed, s: score, n: name || '', a: (answers || []).map(String) }),
+  )
+}
+
+export function decodeDeepChallenge(str) {
+  try {
+    const p = JSON.parse(fromB64Url(str))
+    if (typeof p.d !== 'number') return null
+    return {
+      seed: Number(p.d),
+      score: Number(p.s) || 0,
+      name: String(p.n || ''),
+      answers: Array.isArray(p.a) ? p.a.map(String) : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+export function buildDeepChallengeUrl(data) {
+  return `${location.origin}${location.pathname}#d=${encodeDeepChallenge(data)}`
+}
+
+export function readDeepChallengeFromUrl() {
+  const m = location.hash.match(/[#&]d=([^&]+)/)
+  return m ? decodeDeepChallenge(m[1]) : null
+}
+
 // Local (this-device) personal best for the daily board, keyed by day.
 // A real cross-player leaderboard needs a shared backend (e.g. Vercel KV);
 // this is the zero-dependency starting point.
