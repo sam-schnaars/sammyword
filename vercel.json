@@ -1,6 +1,8 @@
 {
   "rewrites": [
-    { "source": "/mobile", "destination": "/" },
+    { "source": "/mobile", "destination": "/index.html" },
+    { "source": "/mobile/", "destination": "/index.html" },
+    { "source": "/mobile/concepts/", "destination": "/concepts/index.html" },
     { "source": "/mobile/:path*", "destination": "/:path*" }
   ]
 }
