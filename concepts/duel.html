@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#2a1a2e" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <title>Quill Duel — concept C</title>
+    <link rel="stylesheet" href="./kit.css" />
+    <style>
+      /* Strict four-color palette: cream, amber, plum, ink. */
+      :root { --cream: #f2e9d0; --amber: #d9a441; --plum: #7a3b5e; --ink: #2a1a2e; }
+      body { font-family: 'Press Start 2P', monospace; color: var(--ink); background: var(--ink); font-size: 10px; line-height: 1.6; }
+      .app { background: var(--cream); }
+      .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 10px 6px; }
+      .bar .name { display: flex; justify-content: space-between; margin-bottom: 4px; }
+      .bar.right .name { flex-direction: row-reverse; }
+      .hp { height: 14px; border: 3px solid var(--ink); background: var(--cream); display: flex; }
+      .bar.right .hp { flex-direction: row-reverse; }
+      .hp i { display: block; height: 100%; background: var(--plum); transition: width 0.5s steps(6); }
+      .hp.low i { background: var(--amber); }
+      .scene { flex: none; aspect-ratio: 160 / 92; border-top: 3px solid var(--ink); border-bottom: 3px solid var(--ink); }
+      .dialog { margin: 10px; padding: 10px; min-height: 66px; border: 3px solid var(--ink); background: var(--cream); box-shadow: 4px 4px 0 var(--plum); font-size: 11px; line-height: 1.7; }
+      .dialog b { color: var(--plum); }
+      .ask { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 10px 12px; gap: 8px; }
+      .round { display: flex; justify-content: space-between; color: var(--plum); }
+      .timebar { height: 10px; border: 3px solid var(--ink); }
+      .timebar i { display: block; height: 100%; background: var(--amber); transition: width 1s linear; }
+      #prompt { background: var(--ink); color: var(--cream); padding: 12px 10px; font-size: 12px; line-height: 1.6; text-align: center; }
+      form { display: flex; gap: 8px; }
+      input { flex: 1; min-width: 0; font-size: 16px; font-family: inherit; padding: 10px 8px; background: var(--cream); color: var(--ink); border: 3px solid var(--ink); outline: none; }
+      input:focus { background: #fff8e0; box-shadow: 0 0 0 3px var(--amber); }
+      input:disabled { opacity: 0.45; }
+      .btn { background: var(--amber); color: var(--ink); border: 3px solid var(--ink); padding: 10px 12px; font-size: 11px; box-shadow: 4px 4px 0 var(--ink); }
+      .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+      .btn:disabled { opacity: 0.45; }
+      #msg { min-height: 14px; color: var(--plum); text-align: center; font-size: 9px; }
+      .overlay { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; text-align: center; background: var(--cream); overflow-y: auto; }
+      h1 { font-size: 30px; line-height: 1.3; color: var(--plum); text-shadow: 3px 3px 0 var(--amber); }
+      .overlay p { max-width: 330px; font-size: 10px; line-height: 1.9; }
+      .dmg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; max-width: 310px; font-size: 9px; }
+      .dmg span { border: 3px solid var(--ink); padding: 6px; }
+      .dmg span:last-child { background: var(--ink); color: var(--amber); }
+      .verdict { font-size: 26px; color: var(--plum); text-shadow: 3px 3px 0 var(--amber); }
+      .recap { width: 100%; max-width: 350px; font-size: 8px; line-height: 1.7; text-align: left; display: grid; gap: 6px; }
+      .recap > div { border: 3px solid var(--ink); padding: 6px; }
+      .recap small { display: block; font-size: 8px; color: var(--plum); margin-bottom: 3px; }
+      .recap .vs { display: flex; justify-content: space-between; gap: 8px; }
+      .recap .vs span:last-child { text-align: right; }
+      a.back { color: var(--ink); font-size: 9px; }
+      canvas#hero { width: 192px; height: 96px; }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="bars">
+        <div class="bar"><div class="name"><span>YOU</span><span id="php">12</span></div><div class="hp" id="phpbar"><i style="width: 100%"></i></div></div>
+        <div class="bar right"><div class="name"><span>FOX</span><span id="rhp">12</span></div><div class="hp" id="rhpbar"><i style="width: 100%"></i></div></div>
+      </div>
+      <div class="scene" id="scene"><canvas id="cv" width="160" height="92"></canvas></div>
+      <div class="dialog" id="dialog"></div>
+      <div class="ask">
+        <div class="round"><span id="round">ROUND 1/5</span><span id="secs"></span></div>
+        <div class="timebar"><i id="timefill" style="width: 100%"></i></div>
+        <div id="prompt">&nbsp;</div>
+        <form id="form" autocomplete="off">
+          <input id="guess" placeholder="Answer…" disabled autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" />
+          <button class="btn" type="submit" id="go" disabled>HURL</button>
+        </form>
+        <div id="msg"></div>
+      </div>
+      <div class="overlay" id="title">
+        <canvas id="hero" width="64" height="32"></canvas>
+        <h1>QUILL<br />DUEL</h1>
+        <p>Same question, one answer each. Your answer is your attack — the more obscure it is, the harder it hits. Say the same thing as your rival and it's a clash: no damage.</p>
+        <div class="dmg"><span>COMMON 1</span><span>SOLID 2</span><span>RARE 4</span><span>DEEP CUT 7</span></div>
+        <button class="btn" id="start">FIGHT</button>
+        <a class="back" href="./">&lt; all concepts</a>
+      </div>
+      <div class="overlay hidden" id="over"></div>
+    </div>
+    <script type="module" src="./duel.js"></script>
+  </body>
+</html>

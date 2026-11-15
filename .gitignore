@@ -8,3 +8,5 @@ dist-ssr
 
 # Playwright MCP scratch output
 .playwright-mcp/
+.vercel
+.env*

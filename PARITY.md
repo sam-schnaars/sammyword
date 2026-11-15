@@ -57,6 +57,11 @@ on each side. This file is the contract that keeps them in sync.
   (no collapse) so its leaderboard stays readable. The web has no compose field
   to stage into, so it keeps its manual share button — an intentional platform
   difference, not a gap.
+- **Redesign concepts (web only, temporary).** `concepts/` holds three playable
+  pixel-art prototypes of the rare-answer game (Motherlode, Liftoff, Quill Duel)
+  served at `/mobile/concepts/`. They are exploration, not shipped modes, and are
+  not linked from the app. Whichever direction is picked gets built properly on
+  both platforms; the other prototypes get deleted.
 - **Daily determinism is per-platform.** Both use the same seeded `mulberry32`
   + `hashStr('sammyword-' + UTC-day)` algorithm and the same letter bag, so a
   given day yields the same board within a platform. Cross-platform identical
