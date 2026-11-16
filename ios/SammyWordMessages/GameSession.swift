@@ -20,7 +20,7 @@ final class GameSession: ObservableObject {
 
     /// Which game to deep-jump into. The compact bar offers both modes directly,
     /// so a tap there sets this and expands; `ExpandedView` consumes it on appear.
-    enum LaunchMode { case wordHunt, flagMatch, deepCut }
+    enum LaunchMode { case wordHunt, flagMatch, deepCut, krillion }
     var launchMode: LaunchMode?
 
     /// Pick a mode from the compact bar: remember it, then expand into it.

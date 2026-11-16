@@ -63,11 +63,29 @@ struct DeepCutPayload: Equatable {
     var isChallenge: Bool { challengerScore != nil }
 }
 
+/// A Krillion result traded in chat. Krillion itself runs on krillion.io; we
+/// only carry the text its own Share button produced (nil = a plain invite).
+struct KrillionPayload: Equatable {
+    var shareText: String?
+    var senderName: String?
+
+    /// Bubble caption: the first line of the shared result, or an invite.
+    var caption: String {
+        let first = shareText?
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first(where: { !$0.isEmpty })
+        if let first { return "\(first) — your turn" }
+        return "Dive into today's Krillion with me"
+    }
+}
+
 /// Which game a tapped message carries.
 enum DecodedGame: Equatable {
     case wordHunt(GamePayload)
     case flagMatch(FlagPayload)
     case deepCut(DeepCutPayload)
+    case krillion(KrillionPayload)
 }
 
 enum GameMessage {
@@ -76,6 +94,7 @@ enum GameMessage {
     /// Word Hunt: m = map id, b = board (tiles joined by "-"), cw = words ("."-joined).
     /// Flag Match: fs = quiz seed.
     /// Deep Cut (g = "d"): ds = round seed, ca = answers ("|"-joined).
+    /// Krillion (g = "k"): kt = the result text from Krillion's share button.
     static func encode(_ game: DecodedGame) -> URL {
         var components = URLComponents()
         components.scheme = "https"
@@ -117,6 +136,14 @@ enum GameMessage {
             if !payload.challengerAnswers.isEmpty {
                 items.append(URLQueryItem(name: "ca", value: payload.challengerAnswers.joined(separator: "|")))
             }
+        case let .krillion(payload):
+            items.append(URLQueryItem(name: "g", value: "k"))
+            if let text = payload.shareText, !text.isEmpty {
+                items.append(URLQueryItem(name: "kt", value: String(text.prefix(1200))))
+            }
+            if let name = payload.senderName, !name.isEmpty {
+                items.append(URLQueryItem(name: "cn", value: name))
+            }
         }
 
         components.queryItems = items
@@ -140,6 +167,11 @@ enum GameMessage {
         if value("g") == "f" {
             guard let seed = value("fs").flatMap({ Int($0) }) else { return nil }
             return .flagMatch(FlagPayload(seed: seed, challengerScore: score, challengerName: name))
+        }
+
+        // Krillion result / invite.
+        if value("g") == "k" {
+            return .krillion(KrillionPayload(shareText: value("kt"), senderName: name))
         }
 
         // Deep Cut challenge.

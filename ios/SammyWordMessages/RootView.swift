@@ -39,10 +39,11 @@ struct CompactView: View {
             }
             .buttonStyle(.plain)
         } else {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 gameButton(emoji: "🔤", title: "Word Hunt") { session.launch(.wordHunt) }
                 gameButton(emoji: "🚩", title: "Flag Match") { session.launch(.flagMatch) }
                 gameButton(emoji: "💎", title: "Deep Cut") { session.launch(.deepCut) }
+                gameButton(emoji: "🦐", title: "Krillion") { session.launch(.krillion) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 16)
@@ -81,6 +82,10 @@ struct CompactView: View {
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
         case let .deepCut(p) where p.isChallenge:
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
+        case let .krillion(p):
+            return p.shareText == nil
+                ? "\(p.senderName ?? "A friend") wants a Krillion dive — tap to play"
+                : "\(p.senderName ?? "A friend") shared their Krillion — tap to see"
         default:
             return nil
         }
@@ -92,7 +97,7 @@ struct ExpandedView: View {
     @ObservedObject var session: GameSession
     @StateObject private var game = WordHuntGame()
 
-    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch, deepCut }
+    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch, deepCut, krillion }
     @State private var screen: Screen = .modePicker
     @State private var dailyKey: String?            // non-nil while playing the daily board
     @State private var wordChallenge: GamePayload?  // incoming Word Hunt challenge, if any
@@ -105,7 +110,8 @@ struct ExpandedView: View {
                 ModePicker(
                     onWordHunt: { screen = .wordHome },
                     onFlags: { wordChallenge = nil; dailyKey = nil; screen = .flagMatch },
-                    onDeep: { wordChallenge = nil; dailyKey = nil; screen = .deepCut }
+                    onDeep: { wordChallenge = nil; dailyKey = nil; screen = .deepCut },
+                    onKrillion: { wordChallenge = nil; dailyKey = nil; screen = .krillion }
                 )
             case .wordHome:
                 WordHuntHome(onMap: startMap, onDaily: startDaily, onBack: { screen = .modePicker })
@@ -135,6 +141,12 @@ struct ExpandedView: View {
                     session: session,
                     onHome: { screen = .modePicker }
                 )
+            case .krillion:
+                KrillionView(
+                    incoming: incomingKrillion,
+                    session: session,
+                    onHome: { screen = .modePicker }
+                )
             }
         }
         .onAppear(perform: begin)
@@ -147,6 +159,11 @@ struct ExpandedView: View {
 
     private var incomingDeepChallenge: DeepCutPayload? {
         if case let .deepCut(p) = session.incoming, p.isChallenge { return p }
+        return nil
+    }
+
+    private var incomingKrillion: KrillionPayload? {
+        if case let .krillion(p) = session.incoming { return p }
         return nil
     }
 
@@ -163,12 +180,15 @@ struct ExpandedView: View {
             screen = .flagMatch
         } else if incomingDeepChallenge != nil {
             screen = .deepCut
+        } else if incomingKrillion != nil {
+            screen = .krillion
         } else if let mode = session.launchMode {
             // Opened fresh and the player picked a game from the compact bar.
             switch mode {
             case .wordHunt: screen = .wordHome
             case .flagMatch: screen = .flagMatch
             case .deepCut: screen = .deepCut
+            case .krillion: screen = .krillion
             }
         }
         session.launchMode = nil
@@ -210,6 +230,7 @@ struct ModePicker: View {
     let onWordHunt: () -> Void
     let onFlags: () -> Void
     let onDeep: () -> Void
+    let onKrillion: () -> Void
 
     var body: some View {
         ScrollView {
@@ -231,6 +252,9 @@ struct ModePicker: View {
                 modeTile(icon: "💎", title: "Deep Cut",
                          sub: "Name something — the more obscure your answer, the more it scores",
                          action: onDeep)
+                modeTile(icon: "🦐", title: "Krillion",
+                         sub: "Play today's Krillion dive in chat and trade results with friends",
+                         action: onKrillion)
             }
             .padding(20)
         }

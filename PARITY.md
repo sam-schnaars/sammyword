@@ -33,8 +33,15 @@ on each side. This file is the contract that keeps them in sync.
 | Deep Cut (rare-answer trivia: 5 typed prompts × 20s, rarer correct answers score more, 1-typo forgiveness) | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json` | `DeepCut.swift`, `DeepCutGame.swift`, `DeepCutView.swift`, `Resources/deepcut.json` (byte-identical) | ✅ both |
 | Deep Cut challenge (seeded prompts + score + sender's answers, head-to-head recap) | `share.js` (`#d=`) | `GameMessage.swift` (`g=d`, `ds/cs/cn/ca`) | ✅ both |
 | Mode picker (Word Hunt / Flag Match / Deep Cut) | `App.jsx` (`ModeSelect`) | `RootView.swift` (`ModePicker`, compact bar) | ✅ both |
+| Krillion in Messages (krillion.io in a web view; its Share/Copy result becomes a bubble, `g=k` + `kt/cn`) | — | `KrillionView.swift`, `GameMessage.swift`, `KrillionImageRenderer` | ⚠️ iOS only |
 
 ## Known gaps / platform differences
+
+- **Krillion (iOS only, by request).** The owner scoped this to the iMessage
+  app: it hosts the real krillion.io (an indie game, with the developer's
+  blessing per the owner) in a `WKWebView` and turns the site's share text into
+  a Messages bubble. The web app has no equivalent because it can't host
+  another site or send iMessage bubbles; web players just use krillion.io.
 
 - **Leaderboard backend URL.** Web calls the same-origin `/api/leaderboard`
   (served by `api/leaderboard.js` on Vercel). iOS has no same origin, so

@@ -92,6 +92,8 @@ final class MessagesViewController: MSMessagesAppViewController {
             layout.image = FlagImageRenderer.image(for: payload.seed)
         case let .deepCut(payload):
             layout.image = DeepCutImageRenderer.image(for: payload.seed)
+        case let .krillion(payload):
+            layout.image = KrillionImageRenderer.image(for: payload)
         }
         message.layout = layout
         message.url = GameMessage.encode(game)
@@ -303,6 +305,59 @@ enum DeepCutImageRenderer {
                 .paragraphStyle: center,
             ])
             body.draw(in: CGRect(x: size * 0.08, y: size * 0.52, width: size * 0.84, height: size * 0.4))
+        }
+    }
+}
+
+/// Bubble preview for a Krillion result: a deep-sea gradient with the result's
+/// headline line (or an invite) in big type. Plain shapes and text only.
+enum KrillionImageRenderer {
+    static func image(for payload: KrillionPayload, size: CGFloat = 320) -> UIImage {
+        let lines = (payload.shareText ?? "")
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.lowercased().hasPrefix("http") && !$0.lowercased().contains("krillion.io") }
+        let headline = lines.first ?? "Today's dive"
+        let detail = lines.dropFirst().prefix(3).joined(separator: "\n")
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { ctx in
+            let cg = ctx.cgContext
+            let colors = [UIColor(hex: 0x0B3A5C).cgColor, UIColor(hex: 0x040B1C).cgColor]
+            if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1]) {
+                cg.drawLinearGradient(grad, start: .zero, end: CGPoint(x: 0, y: size), options: [])
+            }
+            // A few pixel "bubbles" rising.
+            UIColor(white: 1, alpha: 0.18).setFill()
+            for (x, y, s) in [(0.12, 0.70, 0.03), (0.18, 0.55, 0.02), (0.86, 0.30, 0.025), (0.80, 0.18, 0.015), (0.90, 0.80, 0.02)] {
+                cg.fill(CGRect(x: size * x, y: size * y, width: size * s, height: size * s))
+            }
+
+            let center = NSMutableParagraphStyle()
+            center.alignment = .center
+            let shrimp = NSAttributedString(string: "🦐", attributes: [.font: UIFont.systemFont(ofSize: size * 0.18)])
+            let ss = shrimp.size()
+            shrimp.draw(at: CGPoint(x: (size - ss.width) / 2, y: size * 0.07))
+
+            NSAttributedString(string: "KRILLION", attributes: [
+                .font: UIFont.monospacedSystemFont(ofSize: size * 0.07, weight: .heavy),
+                .foregroundColor: UIColor(hex: 0x6FE3FF),
+                .kern: 4,
+                .paragraphStyle: center,
+            ]).draw(in: CGRect(x: 0, y: size * 0.31, width: size, height: size * 0.1))
+
+            NSAttributedString(string: headline, attributes: [
+                .font: UIFont.systemFont(ofSize: size * 0.08, weight: .bold),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: center,
+            ]).draw(in: CGRect(x: size * 0.06, y: size * 0.45, width: size * 0.88, height: size * 0.2))
+
+            if !detail.isEmpty {
+                NSAttributedString(string: detail, attributes: [
+                    .font: UIFont.systemFont(ofSize: size * 0.06),
+                    .foregroundColor: UIColor(white: 1, alpha: 0.85),
+                    .paragraphStyle: center,
+                ]).draw(in: CGRect(x: size * 0.06, y: size * 0.64, width: size * 0.88, height: size * 0.32))
+            }
         }
     }
 }
