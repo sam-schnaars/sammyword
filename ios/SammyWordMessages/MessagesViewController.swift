@@ -31,8 +31,9 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.send = { [weak self] game, caption, collapse in
             self?.send(game: game, caption: caption, collapse: collapse)
         }
-        session.sendNow = { [weak self] game, caption in
-            self?.sendNow(game: game, caption: caption)
+        session.sendNow = { [weak self] game, caption, done in
+            guard let self else { return done("closed") }
+            self.sendNow(game: game, caption: caption, done: done)
         }
 
         let host = UIHostingController(rootView: RootView(session: session))
@@ -124,20 +125,29 @@ final class MessagesViewController: MSMessagesAppViewController {
         if collapse { requestPresentationStyle(.compact) }
     }
 
-    /// Send without the extra tap. `MSConversation.send` only succeeds while the
-    /// extension is on screen and the player has interacted with it. When it
-    /// works the player stays on their results; if Messages refuses, stage the
-    /// bubble and collapse so one tap on the arrow sends it.
-    private func sendNow(game: DecodedGame, caption: String) {
-        guard let conversation = activeConversation else { return }
+    /// Send without the extra tap. Apple only lets `MSConversation.send` through
+    /// while the extension is visible and has had a recent touch, and it can
+    /// refuse (or never answer). Whatever happens the player ends up looking at
+    /// the chat: on success the bubble is in the transcript; otherwise it is
+    /// staged in the input field, one tap on the arrow from sent.
+    private func sendNow(game: DecodedGame, caption: String, done: @escaping (String?) -> Void) {
+        guard let conversation = activeConversation else { return done("no chat") }
         let message = makeMessage(game: game, caption: caption, in: conversation)
-        conversation.send(message) { [weak self] error in
-            guard error != nil else { return }
+        var settled = false
+        let settle: (String?) -> Void = { [weak self] failure in
             DispatchQueue.main.async {
-                conversation.insert(message) { _ in }
+                guard !settled else { return }
+                settled = true
+                if failure != nil { conversation.insert(message) { _ in } }
+                done(failure)
                 self?.requestPresentationStyle(.compact)
             }
         }
+        conversation.send(message) { error in
+            settle(error.map { "error \(($0 as NSError).code)" })
+        }
+        // No answer from Messages counts as a refusal.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { settle("timeout") }
     }
 }
 

@@ -43,6 +43,8 @@ final class GameSession: ObservableObject {
     var send: (_ game: DecodedGame, _ caption: String, _ collapse: Bool) -> Void = { _, _, _ in }
 
     /// Send `game` straight into the conversation with no extra tap where
-    /// Messages allows it (falls back to staging it), then get out of the way.
-    var sendNow: (_ game: DecodedGame, _ caption: String) -> Void = { _, _ in }
+    /// Messages allows it. `done` reports what really happened: nil = sent;
+    /// otherwise a short reason, and the bubble was staged in the input field
+    /// instead (one tap on the arrow sends it).
+    var sendNow: (_ game: DecodedGame, _ caption: String, _ done: @escaping (String?) -> Void) -> Void = { _, _, done in done("unavailable") }
 }

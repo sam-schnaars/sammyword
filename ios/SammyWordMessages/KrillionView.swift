@@ -14,7 +14,12 @@ struct KrillionView: View {
 
     /// Today's finished result, once the page reports one.
     @State private var result: KrillionPayload?
-    @State private var sent = false
+    @State private var status: SendStatus = .idle
+
+    private enum SendStatus: Equatable {
+        case idle, sending, sent
+        case staged(String)   // Messages refused; bubble is waiting in the input field
+    }
 
     static let home = URL(string: "https://krillion.io/")!
 
@@ -37,10 +42,10 @@ struct KrillionView: View {
                 Spacer()
                 if let result {
                     Button { deliver(result) } label: {
-                        Text(sent ? "Sent ✓" : "Send \(result.score ?? 0)")
+                        Text(pillText(result))
                             .font(Theme.rounded(13, .bold))
                             .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(sent ? Theme.panel : Theme.accent, in: Capsule())
+                            .background(status == .sent ? Theme.panel : Theme.accent, in: Capsule())
                             .foregroundColor(.white)
                     }
                 }
@@ -60,9 +65,21 @@ struct KrillionView: View {
         }
     }
 
+    private func pillText(_ result: KrillionPayload) -> String {
+        switch status {
+        case .idle: return "Send \(result.score ?? 0)"
+        case .sending: return "Sending…"
+        case .sent: return "Sent ✓"
+        case let .staged(why): return "Tap ↑ to send (\(why))"
+        }
+    }
+
     private func deliver(_ payload: KrillionPayload) {
-        sent = true
-        session.sendNow(.krillion(payload), payload.caption)
+        guard status != .sending else { return }
+        status = .sending
+        session.sendNow(.krillion(payload), payload.caption) { failure in
+            status = failure.map { .staged($0) } ?? .sent
+        }
     }
 }
 
