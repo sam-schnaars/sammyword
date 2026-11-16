@@ -31,6 +31,9 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.send = { [weak self] game, caption, collapse in
             self?.send(game: game, caption: caption, collapse: collapse)
         }
+        session.sendNow = { [weak self] game, caption in
+            self?.sendNow(game: game, caption: caption)
+        }
 
         let host = UIHostingController(rootView: RootView(session: session))
         addChild(host)
@@ -55,6 +58,21 @@ final class MessagesViewController: MSMessagesAppViewController {
         syncPresentation()
     }
 
+    /// Opening the app fresh (or from a Krillion bubble) goes straight into
+    /// Krillion, full height — no bar, no menu. Other challenges keep their
+    /// "tap to play" bar. Only on activation, so swiping down still collapses.
+    override func didBecomeActive(with conversation: MSConversation) {
+        super.didBecomeActive(with: conversation)
+        guard presentationStyle == .compact else { return }
+        switch session.incoming {
+        case nil, .krillion:
+            session.launchMode = .krillion
+            requestPresentationStyle(.expanded)
+        default:
+            break
+        }
+    }
+
     override func didSelect(_ message: MSMessage, conversation: MSConversation) {
         super.didSelect(message, conversation: conversation)
         updateIncoming(from: message)
@@ -75,9 +93,7 @@ final class MessagesViewController: MSMessagesAppViewController {
 
     // MARK: - Sending
 
-    private func send(game: DecodedGame, caption: String, collapse: Bool) {
-        guard let conversation = activeConversation else { return }
-
+    private func makeMessage(game: DecodedGame, caption: String, in conversation: MSConversation) -> MSMessage {
         // Reuse the existing game's session so prior bubbles collapse (GamePigeon
         // style); otherwise start a new one.
         let msgSession = conversation.selectedMessage?.session ?? MSSession()
@@ -97,12 +113,31 @@ final class MessagesViewController: MSMessagesAppViewController {
         }
         message.layout = layout
         message.url = GameMessage.encode(game)
+        return message
+    }
 
-        conversation.insert(message) { _ in }
-        // Note: Messages extensions can only *stage* a message into the input
-        // field — Apple gives no API to actually send it, so the user still taps
-        // the send arrow. Collapsing to compact surfaces that staged bubble.
+    private func send(game: DecodedGame, caption: String, collapse: Bool) {
+        guard let conversation = activeConversation else { return }
+        conversation.insert(makeMessage(game: game, caption: caption, in: conversation)) { _ in }
+        // Staged in the input field; collapsing to compact surfaces it next to
+        // the send arrow.
         if collapse { requestPresentationStyle(.compact) }
+    }
+
+    /// Send without the extra tap. `MSConversation.send` only succeeds while the
+    /// extension is on screen and the player has interacted with it. When it
+    /// works the player stays on their results; if Messages refuses, stage the
+    /// bubble and collapse so one tap on the arrow sends it.
+    private func sendNow(game: DecodedGame, caption: String) {
+        guard let conversation = activeConversation else { return }
+        let message = makeMessage(game: game, caption: caption, in: conversation)
+        conversation.send(message) { [weak self] error in
+            guard error != nil else { return }
+            DispatchQueue.main.async {
+                conversation.insert(message) { _ in }
+                self?.requestPresentationStyle(.compact)
+            }
+        }
     }
 }
 
@@ -309,16 +344,22 @@ enum DeepCutImageRenderer {
     }
 }
 
-/// Bubble preview for a Krillion result: a deep-sea gradient with the result's
-/// headline line (or an invite) in big type. Plain shapes and text only.
+/// Bubble preview for a Krillion result: the score in huge type over a
+/// deep-sea gradient, with one colored block per prompt showing how rare each
+/// answer was. Plain shapes and text only.
 enum KrillionImageRenderer {
+    private static func color(for tier: String) -> UIColor {
+        switch tier {
+        case "plankton": return UIColor(hex: 0x7BD88F)
+        case "schooler": return UIColor(hex: 0x4FC3F7)
+        case "rare": return UIColor(hex: 0xB388FF)
+        case "deepcut": return UIColor(hex: 0xFF6AD5)
+        case "krillion": return UIColor(hex: 0xFFD23F)
+        default: return UIColor(white: 1, alpha: 0.14)
+        }
+    }
+
     static func image(for payload: KrillionPayload, size: CGFloat = 320) -> UIImage {
-        let lines = (payload.shareText ?? "")
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty && !$0.lowercased().hasPrefix("http") && !$0.lowercased().contains("krillion.io") }
-        let headline = lines.first ?? "Today's dive"
-        let detail = lines.dropFirst().prefix(3).joined(separator: "\n")
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
         return renderer.image { ctx in
             let cg = ctx.cgContext
@@ -326,37 +367,48 @@ enum KrillionImageRenderer {
             if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1]) {
                 cg.drawLinearGradient(grad, start: .zero, end: CGPoint(x: 0, y: size), options: [])
             }
-            // A few pixel "bubbles" rising.
-            UIColor(white: 1, alpha: 0.18).setFill()
-            for (x, y, s) in [(0.12, 0.70, 0.03), (0.18, 0.55, 0.02), (0.86, 0.30, 0.025), (0.80, 0.18, 0.015), (0.90, 0.80, 0.02)] {
+            UIColor(white: 1, alpha: 0.16).setFill()
+            for (x, y, s) in [(0.10, 0.62, 0.03), (0.16, 0.48, 0.02), (0.88, 0.30, 0.025), (0.82, 0.16, 0.015), (0.90, 0.66, 0.02)] {
                 cg.fill(CGRect(x: size * x, y: size * y, width: size * s, height: size * s))
             }
 
             let center = NSMutableParagraphStyle()
             center.alignment = .center
-            let shrimp = NSAttributedString(string: "🦐", attributes: [.font: UIFont.systemFont(ofSize: size * 0.18)])
-            let ss = shrimp.size()
-            shrimp.draw(at: CGPoint(x: (size - ss.width) / 2, y: size * 0.07))
+            func draw(_ text: String, font: UIFont, color: UIColor, y: CGFloat, h: CGFloat, kern: CGFloat = 0) {
+                NSAttributedString(string: text, attributes: [
+                    .font: font, .foregroundColor: color, .kern: kern, .paragraphStyle: center,
+                ]).draw(in: CGRect(x: size * 0.04, y: size * y, width: size * 0.92, height: size * h))
+            }
 
-            NSAttributedString(string: "KRILLION", attributes: [
-                .font: UIFont.monospacedSystemFont(ofSize: size * 0.07, weight: .heavy),
-                .foregroundColor: UIColor(hex: 0x6FE3FF),
-                .kern: 4,
-                .paragraphStyle: center,
-            ]).draw(in: CGRect(x: 0, y: size * 0.31, width: size, height: size * 0.1))
+            let title = "🦐 KRILLION" + (payload.day.map { " #\($0)" } ?? "")
+            draw(title, font: .monospacedSystemFont(ofSize: size * 0.065, weight: .heavy),
+                 color: UIColor(hex: 0x6FE3FF), y: 0.08, h: 0.1, kern: 2)
 
-            NSAttributedString(string: headline, attributes: [
-                .font: UIFont.systemFont(ofSize: size * 0.08, weight: .bold),
-                .foregroundColor: UIColor.white,
-                .paragraphStyle: center,
-            ]).draw(in: CGRect(x: size * 0.06, y: size * 0.45, width: size * 0.88, height: size * 0.2))
+            guard let score = payload.score else {
+                draw("Today's dive", font: .systemFont(ofSize: size * 0.13, weight: .heavy), color: .white, y: 0.36, h: 0.2)
+                draw("tap to play", font: .systemFont(ofSize: size * 0.065, weight: .semibold),
+                     color: UIColor(white: 1, alpha: 0.8), y: 0.58, h: 0.1)
+                return
+            }
 
-            if !detail.isEmpty {
-                NSAttributedString(string: detail, attributes: [
-                    .font: UIFont.systemFont(ofSize: size * 0.06),
-                    .foregroundColor: UIColor(white: 1, alpha: 0.85),
-                    .paragraphStyle: center,
-                ]).draw(in: CGRect(x: size * 0.06, y: size * 0.64, width: size * 0.88, height: size * 0.32))
+            draw(String(score), font: .monospacedDigitSystemFont(ofSize: size * 0.34, weight: .black),
+                 color: .white, y: 0.2, h: 0.42)
+            draw("\(payload.senderName ?? "My") \(payload.senderName == nil ? "score" : "scored") · can you beat it?",
+                 font: .systemFont(ofSize: size * 0.055, weight: .semibold),
+                 color: UIColor(white: 1, alpha: 0.85), y: 0.63, h: 0.09)
+
+            // One block per prompt, colored by how rare the answer was.
+            let tiers = payload.tiers
+            if !tiers.isEmpty {
+                let gap = size * 0.02
+                let block = min(size * 0.1, (size * 0.84 - gap * CGFloat(tiers.count - 1)) / CGFloat(tiers.count))
+                let total = block * CGFloat(tiers.count) + gap * CGFloat(tiers.count - 1)
+                var x = (size - total) / 2
+                for tier in tiers {
+                    color(for: tier).setFill()
+                    cg.fill(CGRect(x: x, y: size * 0.78, width: block, height: block))
+                    x += block + gap
+                }
             }
         }
     }

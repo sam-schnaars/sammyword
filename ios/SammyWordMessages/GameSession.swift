@@ -41,4 +41,8 @@ final class GameSession: ObservableObject {
     /// staged message is ready to send); pass `false` to keep the current
     /// presentation, e.g. when auto-staging while the results screen is still up.
     var send: (_ game: DecodedGame, _ caption: String, _ collapse: Bool) -> Void = { _, _, _ in }
+
+    /// Send `game` straight into the conversation with no extra tap where
+    /// Messages allows it (falls back to staging it), then get out of the way.
+    var sendNow: (_ game: DecodedGame, _ caption: String) -> Void = { _, _ in }
 }

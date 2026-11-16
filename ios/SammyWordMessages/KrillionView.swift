@@ -2,9 +2,9 @@ import SwiftUI
 import WebKit
 
 /// Krillion (krillion.io, an indie daily rare-answer game) played inside
-/// Messages. We don't reimplement it: the real site runs in a web view, and its
-/// own "share results" button is intercepted and turned into an iMessage bubble
-/// so friends can trade results back and forth.
+/// Messages. We don't reimplement it: the real site runs in a web view. To keep
+/// friction near zero the page is driven for the player — the dive starts on its
+/// own, and the moment it finishes the score goes out as a bubble.
 ///
 /// Like `MessagesViewController`, this is platform glue (WebKit), not game logic.
 struct KrillionView: View {
@@ -12,118 +12,122 @@ struct KrillionView: View {
     @ObservedObject var session: GameSession
     let onHome: () -> Void
 
-    @State private var showFriend = true
-    @State private var lastShared: String?
+    /// Today's finished result, once the page reports one.
+    @State private var result: KrillionPayload?
+    @State private var sent = false
 
     static let home = URL(string: "https://krillion.io/")!
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button(action: onHome) {
-                    Label("Games", systemImage: "chevron.left")
-                        .font(Theme.rounded(15, .semibold))
+                    Image(systemName: "square.grid.2x2.fill").font(.system(size: 15, weight: .semibold))
                 }
-                .foregroundColor(Theme.headerText)
+                .foregroundColor(Theme.mutedText)
+
+                if let friend = incoming, let score = friend.score {
+                    Text("🦐 \(friend.senderName ?? "Friend"): \(score)")
+                        .font(Theme.rounded(14, .bold))
+                        .foregroundColor(Theme.headerText)
+                        .lineLimit(1)
+                } else {
+                    Text("🦐 Krillion").font(Theme.rounded(14, .bold)).foregroundColor(Theme.headerText)
+                }
                 Spacer()
-                Text("🦐 Krillion").font(Theme.rounded(17, .heavy)).foregroundColor(Theme.headerText)
-                Spacer()
-                Button { stage(text: lastShared) } label: {
-                    Label("Send", systemImage: "paperplane.fill")
-                        .font(Theme.rounded(15, .bold))
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(Theme.accent, in: Capsule())
-                        .foregroundColor(.white)
+                if let result {
+                    Button { deliver(result) } label: {
+                        Text(sent ? "Sent ✓" : "Send \(result.score ?? 0)")
+                            .font(Theme.rounded(13, .bold))
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(sent ? Theme.panel : Theme.accent, in: Capsule())
+                            .foregroundColor(.white)
+                    }
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
 
-            if let friend = incoming, let text = friend.shareText, !text.isEmpty, showFriend {
-                friendCard(name: friend.senderName, text: text)
-            }
-
-            KrillionWebView(url: Self.home) { text in
-                // The site's Share / Copy button fired: stage their result as a bubble.
-                lastShared = text
-                stage(text: text)
+            KrillionWebView(url: Self.home) { finished, live in
+                var mine = finished
+                let name = DailyStore.playerName.trimmingCharacters(in: .whitespaces)
+                mine.senderName = name.isEmpty ? nil : name
+                result = mine
+                // Just finished a dive in front of us → send it without asking.
+                if live { deliver(mine) }
             }
             .ignoresSafeArea(edges: .bottom)
         }
     }
 
-    private func friendCard(name: String?, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("\(name ?? "A friend")'s dive")
-                    .font(Theme.rounded(13, .bold)).foregroundColor(Theme.mutedText)
-                Spacer()
-                Button { withAnimation { showFriend = false } } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .bold))
-                }
-                .foregroundColor(Theme.dimText)
-            }
-            Text(text)
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundColor(Theme.onBackground)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineLimit(8)
-        }
-        .padding(12)
-        .background(Theme.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.panelBorder, lineWidth: 1))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
-    }
-
-    private func stage(text: String?) {
-        let name = DailyStore.playerName.trimmingCharacters(in: .whitespaces)
-        let payload = KrillionPayload(shareText: text, senderName: name.isEmpty ? nil : name)
-        session.send(.krillion(payload), payload.caption, true)
+    private func deliver(_ payload: KrillionPayload) {
+        sent = true
+        session.sendNow(.krillion(payload), payload.caption)
     }
 }
 
-/// WKWebView wrapper. A script injected before the page loads replaces
-/// `navigator.share` and `navigator.clipboard.writeText` so the site's share
-/// text comes back to Swift instead of opening the system share sheet.
+/// WKWebView wrapper. A script injected before the page loads:
+///  - presses the site's "begin" button so the questions start immediately, and
+///  - watches the site's saved game state and reports the finished score once.
 struct KrillionWebView: UIViewRepresentable {
     let url: URL
-    let onShare: (String) -> Void
+    /// (result, live) — `live` is true when the dive finished while we watched
+    /// (as opposed to opening a day that was already played).
+    let onDone: (KrillionPayload, Bool) -> Void
 
     private static let bridge = """
     (function () {
-      var post = function (t) {
-        try { window.webkit.messageHandlers.krillionShare.postMessage(String(t || '')); } catch (e) {}
+      var json = function (key) {
+        try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
       };
-      var share = function (d) {
-        d = d || {};
-        var parts = [d.title, d.text, d.url].filter(function (x) { return x; });
-        post(parts.join('\\n'));
-        return Promise.resolve();
-      };
-      try { Object.defineProperty(navigator, 'share', { value: share, configurable: true }); } catch (e) {}
-      try { Object.defineProperty(navigator, 'canShare', { value: function () { return true; }, configurable: true }); } catch (e) {}
-      var clip = navigator.clipboard;
-      var orig = clip && clip.writeText ? clip.writeText.bind(clip) : null;
-      var write = function (t) {
-        post(t);
-        return orig ? orig(t).catch(function () {}) : Promise.resolve();
-      };
-      try {
-        if (clip) Object.defineProperty(clip, 'writeText', { value: write, configurable: true });
-        else Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
-      } catch (e) {}
+      // Krillion keeps the dive in progress under one key and, once it ends,
+      // clears that and files the result under its stats history by date.
+      var history = function () { var s = json('krillion:stats:v1'); return (s && s.history) || {}; };
+      var before = null, started = false, reported = false, liveDate = null;
+      setInterval(function () {
+        if (location.pathname !== '/') return;
+        var h = history();
+        if (before === null) { before = {}; for (var k in h) before[k] = true; }
+        var g = json('krillion:game:v1');
+        if (g && g.phase === 'intro' && !started) {
+          var els = document.querySelectorAll('button, a');
+          for (var i = 0; i < els.length; i++) {
+            if (/begin descent/i.test(els[i].innerText || '')) { started = true; els[i].click(); break; }
+          }
+        }
+        if (g && g.date && g.phase && g.phase !== 'intro') liveDate = g.date;
+        if (reported) return;
+        var date = liveDate, live = true;
+        if (!date || !h[date] || before[date]) {
+          // Nothing finished while we watched. If the page is showing a finished
+          // day ("DIVE #123 COMPLETE"), report that day's saved result once.
+          if (g && g.phase && g.phase !== 'done') return;
+          var m = /DIVE\\s*#(\\d+)\\s*COMPLETE/i.exec(document.body ? document.body.innerText : '');
+          if (!m) return;
+          date = null;
+          for (var d in h) { if (String(h[d].dayNumber) === m[1]) date = d; }
+          if (!date) return;
+          live = false;
+        }
+        var entry = h[date];
+        reported = true;
+        var tiers = (entry.tiers || []).map(function (t) { return String(t || 'miss'); });
+        try {
+          window.webkit.messageHandlers.krillionDone.postMessage(
+            JSON.stringify({ day: entry.dayNumber, score: Number(entry.score) || 0, tiers: tiers, live: live }));
+        } catch (e) {}
+      }, 400);
     })();
     """
 
-    func makeCoordinator() -> Coordinator { Coordinator(onShare: onShare) }
+    func makeCoordinator() -> Coordinator { Coordinator(onDone: onDone) }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         let controller = WKUserContentController()
         controller.addUserScript(WKUserScript(source: Self.bridge, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        controller.add(context.coordinator, name: "krillionShare")
+        controller.add(context.coordinator, name: "krillionDone")
         config.userContentController = controller
 
         let web = WKWebView(frame: .zero, configuration: config)
@@ -136,22 +140,30 @@ struct KrillionWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ web: WKWebView, context: Context) {
-        context.coordinator.onShare = onShare
+        context.coordinator.onDone = onDone
     }
 
     static func dismantleUIView(_ web: WKWebView, coordinator: Coordinator) {
-        web.configuration.userContentController.removeScriptMessageHandler(forName: "krillionShare")
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "krillionDone")
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler {
-        var onShare: (String) -> Void
-        init(onShare: @escaping (String) -> Void) { self.onShare = onShare }
+        var onDone: (KrillionPayload, Bool) -> Void
+        init(onDone: @escaping (KrillionPayload, Bool) -> Void) { self.onDone = onDone }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard let text = message.body as? String else { return }
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
-            DispatchQueue.main.async { self.onShare(trimmed) }
+            guard let text = message.body as? String,
+                  let data = text.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let score = json["score"] as? Int
+            else { return }
+            let payload = KrillionPayload(
+                score: score,
+                day: json["day"] as? Int,
+                tiers: json["tiers"] as? [String] ?? []
+            )
+            let live = json["live"] as? Bool ?? false
+            DispatchQueue.main.async { self.onDone(payload, live) }
         }
     }
 }

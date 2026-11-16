@@ -83,9 +83,9 @@ struct CompactView: View {
         case let .deepCut(p) where p.isChallenge:
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
         case let .krillion(p):
-            return p.shareText == nil
+            return p.score == nil
                 ? "\(p.senderName ?? "A friend") wants a Krillion dive — tap to play"
-                : "\(p.senderName ?? "A friend") shared their Krillion — tap to see"
+                : "\(p.senderName ?? "A friend") scored \(p.score ?? 0) on Krillion — tap to beat it"
         default:
             return nil
         }

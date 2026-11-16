@@ -64,19 +64,18 @@ struct DeepCutPayload: Equatable {
 }
 
 /// A Krillion result traded in chat. Krillion itself runs on krillion.io; we
-/// only carry the text its own Share button produced (nil = a plain invite).
+/// only carry the finished score it reported (nil score = a plain invite).
 struct KrillionPayload: Equatable {
-    var shareText: String?
+    var score: Int?
+    var day: Int?            // Krillion's day number
+    var tiers: [String] = [] // per-prompt tier ids ("miss", "plankton", …)
     var senderName: String?
 
-    /// Bubble caption: the first line of the shared result, or an invite.
+    /// Bubble caption.
     var caption: String {
-        let first = shareText?
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .first(where: { !$0.isEmpty })
-        if let first { return "\(first) — your turn" }
-        return "Dive into today's Krillion with me"
+        guard let score else { return "Dive into today's Krillion with me" }
+        let who = senderName.map { "\($0) scored" } ?? "I scored"
+        return "\(who) \(score) on Krillion\(day.map { " #\($0)" } ?? "") — your turn"
     }
 }
 
@@ -94,7 +93,7 @@ enum GameMessage {
     /// Word Hunt: m = map id, b = board (tiles joined by "-"), cw = words ("."-joined).
     /// Flag Match: fs = quiz seed.
     /// Deep Cut (g = "d"): ds = round seed, ca = answers ("|"-joined).
-    /// Krillion (g = "k"): kt = the result text from Krillion's share button.
+    /// Krillion (g = "k"): ks = score, kd = day number, kr = tiers ("."-joined).
     static func encode(_ game: DecodedGame) -> URL {
         var components = URLComponents()
         components.scheme = "https"
@@ -138,8 +137,10 @@ enum GameMessage {
             }
         case let .krillion(payload):
             items.append(URLQueryItem(name: "g", value: "k"))
-            if let text = payload.shareText, !text.isEmpty {
-                items.append(URLQueryItem(name: "kt", value: String(text.prefix(1200))))
+            if let score = payload.score { items.append(URLQueryItem(name: "ks", value: String(score))) }
+            if let day = payload.day { items.append(URLQueryItem(name: "kd", value: String(day))) }
+            if !payload.tiers.isEmpty {
+                items.append(URLQueryItem(name: "kr", value: payload.tiers.joined(separator: ".")))
             }
             if let name = payload.senderName, !name.isEmpty {
                 items.append(URLQueryItem(name: "cn", value: name))
@@ -171,7 +172,12 @@ enum GameMessage {
 
         // Krillion result / invite.
         if value("g") == "k" {
-            return .krillion(KrillionPayload(shareText: value("kt"), senderName: name))
+            return .krillion(KrillionPayload(
+                score: value("ks").flatMap { Int($0) },
+                day: value("kd").flatMap { Int($0) },
+                tiers: value("kr")?.split(separator: ".").map(String.init) ?? [],
+                senderName: name
+            ))
         }
 
         // Deep Cut challenge.
