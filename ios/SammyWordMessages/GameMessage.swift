@@ -63,19 +63,56 @@ struct DeepCutPayload: Equatable {
     var isChallenge: Bool { challengerScore != nil }
 }
 
-/// A Krillion result traded in chat. Krillion itself runs on krillion.io; we
-/// only carry the finished score it reported (nil score = a plain invite).
-struct KrillionPayload: Equatable {
+/// A daily web game that runs on its own site inside the iMessage app (we host
+/// the real site in a web view and only trade the finished score).
+enum WebGame: String, Equatable, CaseIterable {
+    case krillion = "k"   // krillion.io: daily rare-answer dive
+    case sizeItUp = "s"   // sizeitup.games: daily size-guessing puzzle
+
+    var title: String {
+        switch self {
+        case .krillion: return "Krillion"
+        case .sizeItUp: return "Size It Up"
+        }
+    }
+
+    var emoji: String {
+        switch self {
+        case .krillion: return "🦐"
+        case .sizeItUp: return "📏"
+        }
+    }
+
+    /// Highest possible score, when the game has one (shown as "222/1000").
+    var maxScore: Int? { self == .sizeItUp ? 1000 : nil }
+
+    var invite: String {
+        switch self {
+        case .krillion: return "Dive into today's Krillion with me"
+        case .sizeItUp: return "Size up today's puzzle with me"
+        }
+    }
+}
+
+/// A web-game result traded in chat (nil score = a plain invite).
+struct WebScorePayload: Equatable {
+    var game: WebGame
     var score: Int?
-    var day: Int?            // Krillion's day number
-    var tiers: [String] = [] // per-prompt tier ids ("miss", "plankton", …)
+    var day: Int?             // the site's own puzzle number
+    var marks: [String] = []  // per-round detail: Krillion tier ids, Size It Up round scores
     var senderName: String?
+
+    /// "465", or "222/1000" for games with a maximum.
+    var scoreText: String {
+        guard let score else { return "" }
+        return game.maxScore.map { "\(score)/\($0)" } ?? String(score)
+    }
 
     /// Bubble caption.
     var caption: String {
-        guard let score else { return "Dive into today's Krillion with me" }
+        guard score != nil else { return game.invite }
         let who = senderName.map { "\($0) scored" } ?? "I scored"
-        return "\(who) \(score) on Krillion\(day.map { " #\($0)" } ?? "") — your turn"
+        return "\(who) \(scoreText) on \(game.title)\(day.map { " #\($0)" } ?? "") — your turn"
     }
 }
 
@@ -84,7 +121,7 @@ enum DecodedGame: Equatable {
     case wordHunt(GamePayload)
     case flagMatch(FlagPayload)
     case deepCut(DeepCutPayload)
-    case krillion(KrillionPayload)
+    case web(WebScorePayload)
 }
 
 enum GameMessage {
@@ -93,7 +130,8 @@ enum GameMessage {
     /// Word Hunt: m = map id, b = board (tiles joined by "-"), cw = words ("."-joined).
     /// Flag Match: fs = quiz seed.
     /// Deep Cut (g = "d"): ds = round seed, ca = answers ("|"-joined).
-    /// Krillion (g = "k"): ks = score, kd = day number, kr = tiers ("."-joined).
+    /// Web games (g = "k" Krillion, "s" Size It Up): ks = score, kd = puzzle number,
+    /// kr = per-round detail ("."-joined).
     static func encode(_ game: DecodedGame) -> URL {
         var components = URLComponents()
         components.scheme = "https"
@@ -135,12 +173,12 @@ enum GameMessage {
             if !payload.challengerAnswers.isEmpty {
                 items.append(URLQueryItem(name: "ca", value: payload.challengerAnswers.joined(separator: "|")))
             }
-        case let .krillion(payload):
-            items.append(URLQueryItem(name: "g", value: "k"))
+        case let .web(payload):
+            items.append(URLQueryItem(name: "g", value: payload.game.rawValue))
             if let score = payload.score { items.append(URLQueryItem(name: "ks", value: String(score))) }
             if let day = payload.day { items.append(URLQueryItem(name: "kd", value: String(day))) }
-            if !payload.tiers.isEmpty {
-                items.append(URLQueryItem(name: "kr", value: payload.tiers.joined(separator: ".")))
+            if !payload.marks.isEmpty {
+                items.append(URLQueryItem(name: "kr", value: payload.marks.joined(separator: ".")))
             }
             if let name = payload.senderName, !name.isEmpty {
                 items.append(URLQueryItem(name: "cn", value: name))
@@ -170,12 +208,13 @@ enum GameMessage {
             return .flagMatch(FlagPayload(seed: seed, challengerScore: score, challengerName: name))
         }
 
-        // Krillion result / invite.
-        if value("g") == "k" {
-            return .krillion(KrillionPayload(
+        // Web-game result / invite (Krillion "k", Size It Up "s").
+        if let game = value("g").flatMap(WebGame.init(rawValue:)) {
+            return .web(WebScorePayload(
+                game: game,
                 score: value("ks").flatMap { Int($0) },
                 day: value("kd").flatMap { Int($0) },
-                tiers: value("kr")?.split(separator: ".").map(String.init) ?? [],
+                marks: value("kr")?.split(separator: ".").map(String.init) ?? [],
                 senderName: name
             ))
         }

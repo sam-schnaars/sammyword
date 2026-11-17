@@ -33,10 +33,15 @@ on each side. This file is the contract that keeps them in sync.
 | Deep Cut (rare-answer trivia: 5 typed prompts × 20s, rarer correct answers score more, 1-typo forgiveness) | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json` | `DeepCut.swift`, `DeepCutGame.swift`, `DeepCutView.swift`, `Resources/deepcut.json` (byte-identical) | ✅ both |
 | Deep Cut challenge (seeded prompts + score + sender's answers, head-to-head recap) | `share.js` (`#d=`) | `GameMessage.swift` (`g=d`, `ds/cs/cn/ca`) | ✅ both |
 | Mode picker (Word Hunt / Flag Match / Deep Cut) | `App.jsx` (`ModeSelect`) | `RootView.swift` (`ModePicker`, compact bar) | ✅ both |
-| Krillion in Messages (opens straight into krillion.io's daily dive in a web view; the finished score sends itself as a picture bubble, `g=k` + `ks/kd/kr/cn`) | — | `KrillionView.swift`, `GameMessage.swift`, `KrillionImageRenderer` | ⚠️ iOS only |
+| Krillion in Messages (opens straight into krillion.io's daily dive in a web view; the finished score sends itself as a picture bubble, `g=k` + `ks/kd/kr/cn`) | — | `WebGameView.swift`, `GameMessage.swift` (`WebGame`, `WebScorePayload`), `WebScoreImageRenderer` | ⚠️ iOS only |
+| Size It Up in Messages (sizeitup.games' daily five in a web view; the finished score out of 1,000 sends itself as a picture bubble, `g=s` + `ks/kd/kr/cn`) | — | `WebGameView.swift`, `GameMessage.swift`, `WebScoreImageRenderer` | ⚠️ iOS only |
 
 ## Known gaps / platform differences
 
+- **Web games: Krillion and Size It Up (iOS only, by request).** Both use the
+  same web-view host (`WebGameView`); Size It Up opens on its daily with no
+  start button, and its score is read from the site's saved progress once the
+  "Today's five done" screen shows. Notes below about Krillion apply to both.
 - **Krillion (iOS only, by request).** The owner scoped this to the iMessage
   app: it hosts the real krillion.io (an indie game, with the developer's
   blessing per the owner) in a `WKWebView`, starts the dive automatically, and

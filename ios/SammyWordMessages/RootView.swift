@@ -43,7 +43,9 @@ struct CompactView: View {
                 gameButton(emoji: "🔤", title: "Word Hunt") { session.launch(.wordHunt) }
                 gameButton(emoji: "🚩", title: "Flag Match") { session.launch(.flagMatch) }
                 gameButton(emoji: "💎", title: "Deep Cut") { session.launch(.deepCut) }
-                gameButton(emoji: "🦐", title: "Krillion") { session.launch(.krillion) }
+                ForEach(WebGame.allCases, id: \.self) { game in
+                    gameButton(emoji: game.emoji, title: game.title) { session.launch(.web(game)) }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 16)
@@ -82,10 +84,10 @@ struct CompactView: View {
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
         case let .deepCut(p) where p.isChallenge:
             return "\(p.challengerName ?? "A friend") challenged you — tap to play"
-        case let .krillion(p):
+        case let .web(p):
             return p.score == nil
-                ? "\(p.senderName ?? "A friend") wants a Krillion dive — tap to play"
-                : "\(p.senderName ?? "A friend") scored \(p.score ?? 0) on Krillion — tap to beat it"
+                ? "\(p.senderName ?? "A friend") wants to play \(p.game.title) — tap to play"
+                : "\(p.senderName ?? "A friend") scored \(p.scoreText) on \(p.game.title) — tap to beat it"
         default:
             return nil
         }
@@ -97,7 +99,7 @@ struct ExpandedView: View {
     @ObservedObject var session: GameSession
     @StateObject private var game = WordHuntGame()
 
-    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch, deepCut, krillion }
+    enum Screen { case modePicker, wordHome, loading, wordPlaying, flagMatch, deepCut, web(WebGame) }
     @State private var screen: Screen = .modePicker
     @State private var dailyKey: String?            // non-nil while playing the daily board
     @State private var wordChallenge: GamePayload?  // incoming Word Hunt challenge, if any
@@ -111,7 +113,7 @@ struct ExpandedView: View {
                     onWordHunt: { screen = .wordHome },
                     onFlags: { wordChallenge = nil; dailyKey = nil; screen = .flagMatch },
                     onDeep: { wordChallenge = nil; dailyKey = nil; screen = .deepCut },
-                    onKrillion: { wordChallenge = nil; dailyKey = nil; screen = .krillion }
+                    onWeb: { game in wordChallenge = nil; dailyKey = nil; screen = .web(game) }
                 )
             case .wordHome:
                 WordHuntHome(onMap: startMap, onDaily: startDaily, onBack: { screen = .modePicker })
@@ -141,15 +143,20 @@ struct ExpandedView: View {
                     session: session,
                     onHome: { screen = .modePicker }
                 )
-            case .krillion:
-                KrillionView(
-                    incoming: incomingKrillion,
+            case let .web(game):
+                WebGameView(
+                    game: game,
+                    incoming: incomingWeb.flatMap { $0.game == game ? $0 : nil },
                     session: session,
                     onHome: { screen = .modePicker }
                 )
+                .id(game)
             }
         }
         .onAppear(perform: begin)
+        // A bubble tapped while the app is already open must still jump to its
+        // game; without this the open screen stayed put and the tap looked dead.
+        .onChange(of: session.incoming) { _ in routeIncoming() }
     }
 
     private var incomingFlagChallenge: FlagPayload? {
@@ -162,15 +169,30 @@ struct ExpandedView: View {
         return nil
     }
 
-    private var incomingKrillion: KrillionPayload? {
-        if case let .krillion(p) = session.incoming { return p }
+    private var incomingWeb: WebScorePayload? {
+        if case let .web(p) = session.incoming { return p }
         return nil
     }
 
     private func begin() {
         guard !kicked else { return }
         kicked = true
-        // A tapped challenge deep-jumps straight into the relevant mode.
+        if !routeIncoming(), let mode = session.launchMode {
+            // Opened fresh and the player picked a game from the compact bar.
+            switch mode {
+            case .wordHunt: screen = .wordHome
+            case .flagMatch: screen = .flagMatch
+            case .deepCut: screen = .deepCut
+            case let .web(game): screen = .web(game)
+            }
+        }
+        session.launchMode = nil
+    }
+
+    /// A tapped challenge deep-jumps straight into the relevant mode. Returns
+    /// whether it did.
+    @discardableResult
+    private func routeIncoming() -> Bool {
         if case let .wordHunt(p) = session.incoming, p.isChallenge {
             wordChallenge = p
             dailyKey = nil
@@ -180,18 +202,12 @@ struct ExpandedView: View {
             screen = .flagMatch
         } else if incomingDeepChallenge != nil {
             screen = .deepCut
-        } else if incomingKrillion != nil {
-            screen = .krillion
-        } else if let mode = session.launchMode {
-            // Opened fresh and the player picked a game from the compact bar.
-            switch mode {
-            case .wordHunt: screen = .wordHome
-            case .flagMatch: screen = .flagMatch
-            case .deepCut: screen = .deepCut
-            case .krillion: screen = .krillion
-            }
+        } else if let p = incomingWeb {
+            screen = .web(p.game)
+        } else {
+            return false
         }
-        session.launchMode = nil
+        return true
     }
 
     /// Generate a guaranteed-solvable board for the chosen map off the main
@@ -230,7 +246,7 @@ struct ModePicker: View {
     let onWordHunt: () -> Void
     let onFlags: () -> Void
     let onDeep: () -> Void
-    let onKrillion: () -> Void
+    let onWeb: (WebGame) -> Void
 
     var body: some View {
         ScrollView {
@@ -252,9 +268,12 @@ struct ModePicker: View {
                 modeTile(icon: "💎", title: "Deep Cut",
                          sub: "Name something — the more obscure your answer, the more it scores",
                          action: onDeep)
-                modeTile(icon: "🦐", title: "Krillion",
+                modeTile(icon: WebGame.krillion.emoji, title: WebGame.krillion.title,
                          sub: "Play today's Krillion dive in chat and trade results with friends",
-                         action: onKrillion)
+                         action: { onWeb(.krillion) })
+                modeTile(icon: WebGame.sizeItUp.emoji, title: WebGame.sizeItUp.title,
+                         sub: "Guess how big things really are, five a day, and trade scores",
+                         action: { onWeb(.sizeItUp) })
             }
             .padding(20)
         }

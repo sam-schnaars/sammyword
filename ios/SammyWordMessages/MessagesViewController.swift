@@ -59,15 +59,19 @@ final class MessagesViewController: MSMessagesAppViewController {
         syncPresentation()
     }
 
-    /// Opening the app fresh (or from a Krillion bubble) goes straight into
-    /// Krillion, full height — no bar, no menu. Other challenges keep their
-    /// "tap to play" bar. Only on activation, so swiping down still collapses.
+    /// Opening the app fresh goes straight into Krillion, and a Krillion or Size
+    /// It Up bubble goes straight into that game: full height, no bar, no menu.
+    /// Other challenges keep their "tap to play" bar. Only on activation, so
+    /// swiping down still collapses.
     override func didBecomeActive(with conversation: MSConversation) {
         super.didBecomeActive(with: conversation)
         guard presentationStyle == .compact else { return }
         switch session.incoming {
-        case nil, .krillion:
-            session.launchMode = .krillion
+        case nil:
+            session.launchMode = .web(.krillion)
+            requestPresentationStyle(.expanded)
+        case let .web(payload):
+            session.launchMode = .web(payload.game)
             requestPresentationStyle(.expanded)
         default:
             break
@@ -109,8 +113,8 @@ final class MessagesViewController: MSMessagesAppViewController {
             layout.image = FlagImageRenderer.image(for: payload.seed)
         case let .deepCut(payload):
             layout.image = DeepCutImageRenderer.image(for: payload.seed)
-        case let .krillion(payload):
-            layout.image = KrillionImageRenderer.image(for: payload)
+        case let .web(payload):
+            layout.image = WebScoreImageRenderer.image(for: payload)
         }
         message.layout = layout
         message.url = GameMessage.encode(game)
@@ -354,10 +358,17 @@ enum DeepCutImageRenderer {
     }
 }
 
-/// Bubble preview for a Krillion result: the score in huge type over a
+/// Bubble previews for web-game results. Krillion: the score in huge type over a
 /// deep-sea gradient, with one colored block per prompt showing how rare each
 /// answer was. Plain shapes and text only.
-enum KrillionImageRenderer {
+enum WebScoreImageRenderer {
+    static func image(for payload: WebScorePayload, size: CGFloat = 320) -> UIImage {
+        switch payload.game {
+        case .krillion: return krillion(payload, size: size)
+        case .sizeItUp: return sizeItUp(payload, size: size)
+        }
+    }
+
     private static func color(for tier: String) -> UIColor {
         switch tier {
         case "plankton": return UIColor(hex: 0x7BD88F)
@@ -369,7 +380,7 @@ enum KrillionImageRenderer {
         }
     }
 
-    static func image(for payload: KrillionPayload, size: CGFloat = 320) -> UIImage {
+    static func krillion(_ payload: WebScorePayload, size: CGFloat) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
         return renderer.image { ctx in
             let cg = ctx.cgContext
@@ -408,7 +419,7 @@ enum KrillionImageRenderer {
                  color: UIColor(white: 1, alpha: 0.85), y: 0.63, h: 0.09)
 
             // One block per prompt, colored by how rare the answer was.
-            let tiers = payload.tiers
+            let tiers = payload.marks
             if !tiers.isEmpty {
                 let gap = size * 0.02
                 let block = min(size * 0.1, (size * 0.84 - gap * CGFloat(tiers.count - 1)) / CGFloat(tiers.count))
@@ -420,6 +431,84 @@ enum KrillionImageRenderer {
                     x += block + gap
                 }
             }
+        }
+    }
+
+    /// Size It Up: a kraft-paper measuring board like the site's, the score in
+    /// big black type out of 1,000, and one ruler bar per round (each round is
+    /// worth up to 100 before streak bonuses).
+    static func sizeItUp(_ payload: WebScorePayload, size: CGFloat) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { ctx in
+            let cg = ctx.cgContext
+            let ink = UIColor(hex: 0x14110C), red = UIColor(hex: 0xC8102E)
+            UIColor(hex: 0xD9BD86).setFill()
+            cg.fill(CGRect(x: 0, y: 0, width: size, height: size))
+
+            // Measuring grid.
+            let step = size / 16
+            for i in 0...16 {
+                let v = CGFloat(i) * step
+                (i % 4 == 0 ? UIColor(hex: 0xA88B55, alpha: 0.55) : UIColor(hex: 0xBFA36C, alpha: 0.45)).setFill()
+                cg.fill(CGRect(x: v, y: 0, width: i % 4 == 0 ? 1.4 : 0.8, height: size))
+                cg.fill(CGRect(x: 0, y: v, width: size, height: i % 4 == 0 ? 1.4 : 0.8))
+            }
+
+            let center = NSMutableParagraphStyle(); center.alignment = .center
+            let left = NSMutableParagraphStyle(); left.alignment = .left
+            let right = NSMutableParagraphStyle(); right.alignment = .right
+            func draw(_ text: String, _ font: UIFont, _ color: UIColor, _ rect: CGRect, _ style: NSParagraphStyle, kern: CGFloat = 0) {
+                NSAttributedString(string: text, attributes: [
+                    .font: font, .foregroundColor: color, .paragraphStyle: style, .kern: kern,
+                ]).draw(in: rect)
+            }
+
+            // Header bar.
+            ink.setFill()
+            cg.fill(CGRect(x: 0, y: 0, width: size, height: size * 0.15))
+            draw("SIZE IT UP", .monospacedSystemFont(ofSize: size * 0.06, weight: .heavy), .white,
+                 CGRect(x: size * 0.06, y: size * 0.042, width: size * 0.6, height: size * 0.09), left, kern: 1.5)
+            if let day = payload.day {
+                draw("No. \(day)", .monospacedSystemFont(ofSize: size * 0.05, weight: .bold), UIColor(hex: 0xFF5A6E),
+                     CGRect(x: size * 0.5, y: size * 0.05, width: size * 0.44, height: size * 0.08), right)
+            }
+
+            guard let score = payload.score else {
+                draw("How big is it,\nreally?", .systemFont(ofSize: size * 0.1, weight: .black), ink,
+                     CGRect(x: size * 0.06, y: size * 0.3, width: size * 0.88, height: size * 0.3), center)
+                draw("tap to play today's five", .systemFont(ofSize: size * 0.055, weight: .semibold), ink.withAlphaComponent(0.7),
+                     CGRect(x: size * 0.06, y: size * 0.66, width: size * 0.88, height: size * 0.08), center)
+                return
+            }
+
+            // Score.
+            draw(String(score), .monospacedDigitSystemFont(ofSize: size * 0.28, weight: .black), ink,
+                 CGRect(x: size * 0.04, y: size * 0.17, width: size * 0.62, height: size * 0.34), right)
+            draw("/ 1,000", .monospacedSystemFont(ofSize: size * 0.06, weight: .bold), red,
+                 CGRect(x: size * 0.68, y: size * 0.36, width: size * 0.3, height: size * 0.08), left)
+
+            // One ruler bar per round.
+            let rounds = payload.marks.compactMap { Int($0) }
+            let top = size * 0.56, rowH = size * 0.056, gap = size * 0.014
+            let x0 = size * 0.14, full = size * 0.72
+            for (i, value) in rounds.prefix(5).enumerated() {
+                let y = top + CGFloat(i) * (rowH + gap)
+                draw("\(i + 1)", .monospacedSystemFont(ofSize: size * 0.04, weight: .bold), ink.withAlphaComponent(0.6),
+                     CGRect(x: size * 0.06, y: y + rowH * 0.05, width: size * 0.06, height: rowH), left)
+                UIColor(white: 1, alpha: 0.35).setFill()
+                cg.fill(CGRect(x: x0, y: y, width: full, height: rowH))
+                ink.setFill()
+                let w = full * CGFloat(min(max(value, 0), 100)) / 100
+                cg.fill(CGRect(x: x0, y: y, width: w, height: rowH))
+                red.setFill()
+                cg.fill(CGRect(x: x0 + max(w - 2, 0), y: y - 2, width: 3, height: rowH + 4))
+                draw(String(value), .monospacedDigitSystemFont(ofSize: size * 0.038, weight: .bold), ink,
+                     CGRect(x: x0 + full + 4, y: y + rowH * 0.08, width: size * 0.1, height: rowH), left)
+            }
+
+            let who = payload.senderName.map { "\($0) scored" } ?? "My score"
+            draw("\(who) · can you beat it?", .systemFont(ofSize: size * 0.045, weight: .semibold), ink,
+                 CGRect(x: size * 0.04, y: size * 0.915, width: size * 0.92, height: size * 0.07), center)
         }
     }
 }
