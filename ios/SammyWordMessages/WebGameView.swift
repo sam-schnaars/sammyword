@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 
-/// A daily web game (Krillion, Size It Up) played inside Messages. We don't
+/// A daily web game (Krillion, Magnitudle, 100 of Us, Eraly) played inside Messages. We don't
 /// reimplement them: the real site runs in a web view. To keep friction near
 /// zero the page is driven for the player where the site allows it, and the
 /// moment a round finishes the score goes out as a bubble.
@@ -110,7 +110,7 @@ struct WebGameView: View {
     private func deliver(_ payload: WebScorePayload) {
         guard status != .sending else { return }
         status = .sending
-        session.sendNow(.web(payload), payload.caption) { failure in
+        session.sendNow(payload) { failure in
             status = failure.map { .staged($0) } ?? .sent
         }
     }
@@ -132,7 +132,9 @@ struct WebGameWebView: UIViewRepresentable {
     static func url(for game: WebGame) -> URL {
         switch game {
         case .krillion: return URL(string: "https://krillion.io/")!
-        case .sizeItUp: return URL(string: "https://sizeitup.games/")!
+        case .magnitudle: return URL(string: "https://magnitudle.com/daily")!
+        case .hundredOfUs: return URL(string: "https://logicers.com/100-of-us/")!
+        case .eraly: return URL(string: "https://eraly.io/")!
         }
     }
 
@@ -190,35 +192,96 @@ struct WebGameWebView: UIViewRepresentable {
     })();
     """
 
-    /// Size It Up opens straight onto the daily, so there is nothing to press.
-    /// Each day is saved as `siu:progress:regular:<date>` with five guesses and
-    /// round scores; we report once the "Today's five done" results show.
-    private static let sizeItUp = """
+    /// Magnitudle's daily question keeps the result on its server, not in
+    /// localStorage, so we read the result screen ("ACTUAL ANSWER", "92 /100").
+    /// Seeing the estimate box first means the guess happened in front of us.
+    private static let magnitudle = """
+    (function () {
+    \(post)
+      var sawInput = false, reported = false, last = null, still = 0;
+      setInterval(function () {
+        if (!/^\\/daily/.test(location.pathname)) return;
+        if (document.querySelector('input[placeholder*="estimate" i]')) sawInput = true;
+        if (reported) return;
+        var text = document.body ? document.body.innerText : '';
+        if (!/ACTUAL ANSWER/i.test(text)) return;
+        var m = /(\\d+)\\s*\\/\\s*100\\b/.exec(text);
+        if (!m) return;
+        // The score counts up and eases out slowly near the end; only trust it
+        // once it has held still for two seconds.
+        if (last !== m[1]) { last = m[1]; still = 0; return; }
+        if (++still < 4) return;
+        reported = true;
+        var d = /Daily Question\\s*#(\\d+)/i.exec(text);
+        post(d ? Number(d[1]) : null, Number(m[1]), [], sawInput);
+      }, 500);
+    })();
+    """
+
+    /// 100 of Us files each day's guess and answer in `turnsout:v1` under the
+    /// day number; we report once "Turns out, about N." is on screen. The
+    /// headline is how far off the guess was.
+    private static let hundredOfUs = """
+    (function () {
+    \(post)
+      var results = function () {
+        var s = json('turnsout:v1');
+        return (s && s.games && s.games['100-of-us'] && s.games['100-of-us'].results) || {};
+      };
+      var before = null, reported = false;
+      setInterval(function () {
+        var r = results();
+        if (before === null) { before = {}; for (var k in r) before[k] = true; }
+        if (reported) return;
+        var text = document.body ? document.body.innerText : '';
+        var m = /100 of Us\\s*Day\\s*(\\d+)/i.exec(text);
+        var e = m && r[m[1]];
+        if (!e || e.g == null || e.a == null || !/Turns out/i.test(text)) return;
+        reported = true;
+        var g = Math.round(Number(e.g)), a = Math.round(Number(e.a));
+        post(Number(m[1]), Math.abs(g - a), [String(g), String(a)], !before[m[1]]);
+      }, 500);
+    })();
+    """
+
+    /// Eraly: press "Start the journey" so the first moment comes up at once.
+    /// A finished day is saved as `eraly:result:<day>` with a `total` and each
+    /// round's points; we report once the "N/700" results screen shows.
+    private static let eraly = """
     (function () {
     \(post)
       var latest = function () {
-        var keys = [];
+        var best = null;
         for (var i = 0; i < localStorage.length; i++) {
-          var k = localStorage.key(i);
-          if (/^siu:progress:regular:\\d{4}-\\d{2}-\\d{2}$/.test(k)) keys.push(k);
+          var m = /^eraly:result:(\\d+)$/.exec(localStorage.key(i) || '');
+          if (m && (best === null || Number(m[1]) > best)) best = Number(m[1]);
         }
-        keys.sort();
-        return keys[keys.length - 1] || null;
+        return best;
       };
-      var finished = function (p) { return p && (p.guesses || []).length >= 5 && p.lockedAt; };
-      var before = null, reported = false;
+      var before = null, started = false, reported = false;
       setInterval(function () {
-        var key = latest(), p = key ? json(key) : null;
-        if (before === null) before = finished(p) ? key : '';
-        if (reported || !finished(p)) return;
+        if (location.pathname !== '/') return;
+        var day = latest();
+        if (before === null) before = day === null ? -1 : day;
+        if (!started) {
+          var els = document.querySelectorAll('button');
+          for (var i = 0; i < els.length; i++) {
+            // The page keeps hidden copies of its buttons; only press a visible one.
+            if (els[i].offsetParent && /start the journey/i.test(els[i].innerText || '')) {
+              started = true; els[i].click(); break;
+            }
+          }
+        }
+        if (reported || day === null) return;
         var text = document.body ? document.body.innerText : '';
-        if (!/five done/i.test(text)) return;   // wait for the results screen
+        if (!/\\d+\\s*\\/\\s*700/.test(text)) return;   // wait for the results screen
+        var r = json('eraly:result:' + day);
+        if (!r) return;
         reported = true;
-        var m = /No\\.\\s*(\\d+)/.exec(text);
-        var rounds = (p.scores || []).map(function (s) { return String(Math.round(Number(s) || 0)); });
-        var score = p.bestPoints != null ? p.bestPoints
-          : (p.scores || []).reduce(function (a, b) { return a + (Number(b) || 0); }, 0);
-        post(m ? Number(m[1]) : null, Math.round(Number(score) || 0), rounds, before !== key);
+        var marks = (r.results || []).map(function (x) { return String(Math.round(Number(x.pts) || 0)); });
+        var total = r.total != null ? Number(r.total)
+          : marks.reduce(function (a, b) { return a + Number(b); }, 0);
+        post(day, Math.round(total) || 0, marks, day !== before);
       }, 500);
     })();
     """
@@ -226,7 +289,9 @@ struct WebGameWebView: UIViewRepresentable {
     private func script() -> String {
         switch game {
         case .krillion: return Self.krillion
-        case .sizeItUp: return Self.sizeItUp
+        case .magnitudle: return Self.magnitudle
+        case .hundredOfUs: return Self.hundredOfUs
+        case .eraly: return Self.eraly
         }
     }
 

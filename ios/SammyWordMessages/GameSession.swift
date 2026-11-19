@@ -14,37 +14,28 @@ final class GameSession: ObservableObject {
     /// Current presentation style of the extension.
     @Published var presentation: Presentation = .compact
 
-    /// The challenge decoded from a tapped message (Word Hunt, Flag Match, or Deep Cut), if
-    /// the extension was opened from one. `nil` means "start fresh."
-    @Published var incoming: DecodedGame?
+    /// The result or invite decoded from a tapped bubble, if the extension was
+    /// opened from one. `nil` means "start fresh."
+    @Published var incoming: WebScorePayload?
 
-    /// Which game to deep-jump into. The compact bar offers both modes directly,
-    /// so a tap there sets this and expands; `ExpandedView` consumes it on appear.
-    enum LaunchMode { case wordHunt, flagMatch, deepCut, web(WebGame) }
-    var launchMode: LaunchMode?
+    /// Which game to jump into on expand; `ExpandedView` consumes it on appear.
+    var launchMode: WebGame?
 
-    /// Pick a mode from the compact bar: remember it, then expand into it.
-    func launch(_ mode: LaunchMode) {
-        launchMode = mode
+    /// Pick a game from the compact bar: remember it, then expand into it.
+    func launch(_ game: WebGame) {
+        launchMode = game
         requestExpand()
     }
 
     /// Ask the host to grow to the expanded presentation.
     var requestExpand: () -> Void = {}
 
-    /// Ask the host to shrink to the compact bar, surfacing any staged message
-    /// next to the Messages send arrow (GamePigeon-style "ready to send").
+    /// Ask the host to shrink to the compact bar.
     var requestCollapse: () -> Void = {}
 
-    /// Compose and insert a message carrying `game` with the given caption.
-    /// `collapse` asks the host to shrink to the compact bar afterward (so the
-    /// staged message is ready to send); pass `false` to keep the current
-    /// presentation, e.g. when auto-staging while the results screen is still up.
-    var send: (_ game: DecodedGame, _ caption: String, _ collapse: Bool) -> Void = { _, _, _ in }
-
-    /// Send `game` straight into the conversation with no extra tap where
+    /// Send a result straight into the conversation with no extra tap where
     /// Messages allows it. `done` reports what really happened: nil = sent;
     /// otherwise a short reason, and the bubble was staged in the input field
     /// instead (one tap on the arrow sends it).
-    var sendNow: (_ game: DecodedGame, _ caption: String, _ done: @escaping (String?) -> Void) -> Void = { _, _, done in done("unavailable") }
+    var sendNow: (_ payload: WebScorePayload, _ done: @escaping (String?) -> Void) -> Void = { _, done in done("unavailable") }
 }

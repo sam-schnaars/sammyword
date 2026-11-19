@@ -17,71 +17,54 @@ on each side. This file is the contract that keeps them in sync.
 
 | Feature | Web files | iOS files | Status |
 | --- | --- | --- | --- |
-| Word Hunt (drag-to-spell, 80s timer, scoring) | `App.jsx`, `board.js` | `WordHuntGame.swift`, `GameView.swift`, `GameBoard.swift`, `Scoring.swift` | ✅ both |
-| Board shapes (classic/donut/plus/diamond/heart) | `board.js` (`MAPS`, `HEART`) | `GameBoard.swift` (`GameMap.all`) | ✅ both |
-| Guaranteed-"fun" boards (vowel band + ≥2 core vowels + solver gate: ≥8 words len ≥5 & ≥12 words len 4) | `board.js` (`generateBoard`, `minLong=8`/`minMid=12`) | `BoardGenerator.swift` (`minLong=8`/`minMid=12`) | ✅ both |
-| Dictionary + board solver (curated ~57k common-word list, byte-identical both sides) | `board.js` (`buildTrie`/`solveBoard`), `public/words.txt` | `WordDictionary.swift`, `BoardGenerator.solve`, `Resources/words.txt` | ✅ both |
-| Stronger, length-scaled haptics | `App.jsx` (`hapticForWord`) | `Haptics.swift` | ✅ both |
-| Challenge a friend (Word Hunt) | `share.js`, `App.jsx` | `GameMessage.swift`, `RootView.swift` | ✅ both |
-| Challenge carries both players' words | `share.js` (`w`), `App.jsx` | `GameMessage.swift` (`cw`), `RootView.swift` | ✅ both |
-| Head-to-head results (YOU WON! mirrored word columns) | `App.jsx` (`Compare`/`ScoreDuel`) | `RootView.swift` (`GameOverView`) | ✅ both |
-| Map of the Day (deterministic daily board) | `board.js` (`generateDailyBoard`/`dailyKey`), `App.jsx` (`Home`/`DailyResult`) | `BoardGenerator.dailyBoard`, `DailyStore.swift`, `RootView.swift` | ✅ both |
-| Per-day personal best | `share.js` (`dailyBest`/`saveDailyBest`) | `DailyStore.swift` | ✅ both |
-| Global leaderboard (Redis) | `api/leaderboard.js`, `src/leaderboard.js`, `App.jsx` (`Leaderboard`) | `Leaderboard.swift`, `RootView.swift` | ✅ both |
-| Flag Match (timed flag→country quiz) | `flags.js`, `FlagMatch.jsx` | `Flags.swift`, `FlagMatchGame.swift`, `FlagMatchView.swift` | ✅ both |
-| Flag Match challenge (seeded quiz + score) | `share.js` (`#f=`) | `GameMessage.swift` (`g=f`) | ✅ both |
-| Deep Cut (rare-answer trivia: 5 typed prompts × 20s, rarer correct answers score more, 1-typo forgiveness) | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json` | `DeepCut.swift`, `DeepCutGame.swift`, `DeepCutView.swift`, `Resources/deepcut.json` (byte-identical) | ✅ both |
-| Deep Cut challenge (seeded prompts + score + sender's answers, head-to-head recap) | `share.js` (`#d=`) | `GameMessage.swift` (`g=d`, `ds/cs/cn/ca`) | ✅ both |
-| Mode picker (Word Hunt / Flag Match / Deep Cut) | `App.jsx` (`ModeSelect`) | `RootView.swift` (`ModePicker`, compact bar) | ✅ both |
-| Krillion in Messages (opens straight into krillion.io's daily dive in a web view; the finished score sends itself as a picture bubble, `g=k` + `ks/kd/kr/cn`) | — | `WebGameView.swift`, `GameMessage.swift` (`WebGame`, `WebScorePayload`), `WebScoreImageRenderer` | ⚠️ iOS only |
-| Size It Up in Messages (sizeitup.games' daily five in a web view; the finished score out of 1,000 sends itself as a picture bubble, `g=s` + `ks/kd/kr/cn`) | — | `WebGameView.swift`, `GameMessage.swift`, `WebScoreImageRenderer` | ⚠️ iOS only |
+| Word Hunt (drag-to-spell, 80s timer, scoring) | `App.jsx`, `board.js` | — (removed) | 🌐 web only |
+| Board shapes (classic/donut/plus/diamond/heart) | `board.js` (`MAPS`, `HEART`) | — (removed) | 🌐 web only |
+| Guaranteed-"fun" boards (vowel band + ≥2 core vowels + solver gate: ≥8 words len ≥5 & ≥12 words len 4) | `board.js` (`generateBoard`, `minLong=8`/`minMid=12`) | — (removed) | 🌐 web only |
+| Dictionary + board solver (curated ~57k common-word list) | `board.js` (`buildTrie`/`solveBoard`), `public/words.txt` | — (removed) | 🌐 web only |
+| Length-scaled haptics | `App.jsx` (`hapticForWord`) | — (removed) | 🌐 web only |
+| Challenge a friend (Word Hunt, both players' words, head-to-head results) | `share.js`, `App.jsx` (`Compare`/`ScoreDuel`) | — (removed) | 🌐 web only |
+| Map of the Day + per-day best + global leaderboard | `board.js`, `share.js`, `api/leaderboard.js`, `src/leaderboard.js`, `App.jsx` | — (removed) | 🌐 web only |
+| Flag Match (timed flag→country quiz) + challenge | `flags.js`, `FlagMatch.jsx`, `share.js` (`#f=`) | — (removed) | 🌐 web only |
+| Deep Cut (rare-answer trivia) + challenge | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json`, `share.js` (`#d=`) | — (removed) | 🌐 web only |
+| Mode picker | `App.jsx` (`ModeSelect`: Word Hunt / Flag Match / Deep Cut) | `RootView.swift` (`GameMenu`, compact bar: Krillion / Magnitudle / 100 of Us / Eraly) | ⚠️ different games |
+| Krillion in Messages (opens straight into krillion.io's daily dive in a web view; the finished score sends itself as a picture bubble, `g=k` + `ks/kd/kr/cn`) | — | `WebGameView.swift`, `GameMessage.swift` (`WebGame`, `WebScorePayload`), `ScoreImageRenderer.swift` | ⚠️ iOS only |
+| Magnitudle in Messages (magnitudle.com's Daily Question in a web view; the score out of 100 sends itself as a picture bubble, `g=m` + `ks/kd/cn`) | — | `WebGameView.swift`, `GameMessage.swift`, `ScoreImageRenderer.swift` | ⚠️ iOS only |
+| 100 of Us in Messages (logicers.com/100-of-us in a web view; how far off the guess was sends itself as a picture bubble, `g=h` + `ks` = off-by, `kr` = guess.answer, `kd/cn`) | — | `WebGameView.swift`, `GameMessage.swift`, `ScoreImageRenderer.swift` | ⚠️ iOS only |
+| Eraly in Messages (eraly.io's daily seven "guess the year" moments in a web view, started for you; the score out of 700 sends itself as a picture bubble, `g=e` + `ks/kd/cn`, `kr` = each round's points) | — | `WebGameView.swift`, `GameMessage.swift`, `ScoreImageRenderer.swift` | ⚠️ iOS only |
 
 ## Known gaps / platform differences
 
-- **Web games: Krillion and Size It Up (iOS only, by request).** Both use the
-  same web-view host (`WebGameView`); Size It Up opens on its daily with no
-  start button, and its score is read from the site's saved progress once the
-  "Today's five done" screen shows. Notes below about Krillion apply to both.
-- **Krillion (iOS only, by request).** The owner scoped this to the iMessage
-  app: it hosts the real krillion.io (an indie game, with the developer's
-  blessing per the owner) in a `WKWebView`, starts the dive automatically, and
-  sends the finished score as a Messages bubble. Opening the iMessage app
-  fresh now lands in Krillion; the other modes are behind its grid button. The web app has no equivalent because it can't host
-  another site or send iMessage bubbles; web players just use krillion.io.
-
+- **The two apps now carry different games (by request, 2026-11-16).** The
+  owner cut the iMessage app down to hosted web games: Krillion, Magnitudle
+  (replacing Size It Up) and 100 of Us, then added Eraly (2026-11-17). Word Hunt, Flag Match, Deep
+  Cut and Size It Up were deleted from iOS (code, word list and Deep Cut data);
+  the web prototype still has Word Hunt, Flag Match and Deep Cut and has none of
+  the hosted games, because it can't host another site or send iMessage
+  bubbles. Old Word Hunt / Flag Match / Deep Cut / Size It Up bubbles no longer
+  decode on iOS and just open the app fresh.
+- **Hosted web games (iOS only).** All four share `WebGameView`: the real site
+  runs in a `WKWebView`, a per-game script injected at document start spots the
+  finished result, and a round finished in front of us sends itself
+  (`MSConversation.send`, falling back to staging in the input field). Opening
+  the iMessage app fresh lands in Krillion; the others are behind the grid
+  button. How each result is read:
+  - Krillion: auto-presses "Begin descent"; reads `krillion:stats:v1` history.
+  - Magnitudle: the result lives on its server, so the script reads the result
+    screen ("ACTUAL ANSWER", "N /100") and waits for the counting-up score to
+    hold still for 2 s. Live = the estimate box was seen first.
+  - 100 of Us: reads `turnsout:v1` → `games["100-of-us"].results[day]`
+    (`g` guess, `a` answer) once "Turns out" shows; score = |g − a|, lower wins.
+  - Eraly: auto-presses a visible "Start the journey"; reads
+    `eraly:result:<day>` (`total`, `results[].pts`) once the "N/700" screen
+    shows. Live = that day's result key appeared after the page opened.
 - **Leaderboard backend URL.** Web calls the same-origin `/api/leaderboard`
-  (served by `api/leaderboard.js` on Vercel). iOS has no same origin, so
-  `Leaderboard.swift` targets an absolute base URL (`LEADERBOARD_BASE`). Point
-  it at the deployed host. Both degrade gracefully (hide the panel) when the
-  backend is unreachable / unconfigured.
-- **Challenge transport.** Web encodes challenges in the URL hash (`#c=`/`#f=`)
-  for share-sheet/clipboard links. iOS encodes the same data in an `MSMessage`
-  URL (query params `m/b/cs/cn/cw` for Word Hunt, `g=f` + `fs/cs/cn` for Flag
-  Match, `g=d` + `ds/cs/cn/ca` for Deep Cut). The payload fields are equivalent; only the container differs.
-- **Auto-stage + auto-collapse on first turn (iOS only).** When a fresh
-  challenge round ends (not a reply, and not the daily), the iOS results screen
-  *stages* the challenge message into the Messages input, shows the score for a
-  beat, then auto-collapses to the compact bar so the player lands on the staged
-  message + native send arrow — the GamePigeon feel (`RootView.swift` /
-  `FlagMatchView.swift` → `autoStageIfFirstTurn`, via `GameSession.requestCollapse`).
-  Apple gives extensions no API to actually send, so the final send-arrow tap is
-  always the user's. Editing the name cancels the auto-collapse and restores the
-  "Challenge a friend" button to re-stage by name. The daily round only stages
-  (no collapse) so its leaderboard stays readable. The web has no compose field
-  to stage into, so it keeps its manual share button — an intentional platform
-  difference, not a gap.
+  (served by `api/leaderboard.js` on Vercel). iOS no longer has a leaderboard.
 - **Redesign concepts (web only, temporary).** `concepts/` holds three playable
   pixel-art prototypes of the rare-answer game (Motherlode, Liftoff, Quill Duel)
   served at `/mobile/concepts/`. They are exploration, not shipped modes, and are
-  not linked from the app. Whichever direction is picked gets built properly on
-  both platforms; the other prototypes get deleted.
-- **Daily determinism is per-platform.** Both use the same seeded `mulberry32`
-  + `hashStr('sammyword-' + UTC-day)` algorithm and the same letter bag, so a
-  given day yields the same board within a platform. Cross-platform identical
-  daily boards additionally require identical dictionaries (the solver gate can
-  reject/accept differently otherwise).
+  not linked from the app.
 
-## Scoring tables (must match)
+## Scoring tables (web)
 
 | Letters | Points | Flag Match | Deep Cut (tier → points, from `deepcut.json`) |
 | --- | --- | --- | --- |
