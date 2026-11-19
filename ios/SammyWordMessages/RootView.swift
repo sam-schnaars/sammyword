@@ -18,63 +18,57 @@ struct RootView: View {
     }
 }
 
-/// The small bar shown above the keyboard. On a fresh open it offers every game
-/// directly; if opened from a friend's bubble, it's a single "tap to play".
+/// The small bar shown above the keyboard. On a fresh open it leads with the
+/// game of the day; if opened from a friend's bubble, it's a single "tap to play".
 struct CompactView: View {
     @ObservedObject var session: GameSession
 
     var body: some View {
         if let p = session.incoming {
             Button { session.requestExpand() } label: {
-                VStack(spacing: 4) {
-                    Text("Sammy Word")
-                        .font(Theme.rounded(26, .heavy))
+                VStack(spacing: 10) {
+                    PixelSprite(art: p.game.sprite, scale: 4)
+                    PixelText("SAMMY WORD", scale: 3, color: Pixel.gold, shadow: Pixel.goldDark)
                     Text(p.score == nil
                          ? "\(p.senderName ?? "A friend") wants to play \(p.game.title) — tap to play"
                          : "\(p.senderName ?? "A friend") \(p.brag) on \(p.game.title) — tap to beat it")
-                        .font(Theme.rounded(15, .medium))
-                        .opacity(0.9)
+                        .font(Pixel.mono(14, .semibold))
+                        .foregroundColor(Pixel.cream)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
                 }
-                .foregroundColor(Theme.onBackground)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         } else {
+            let today = Daily.game()
             HStack(spacing: 10) {
                 ForEach(WebGame.allCases, id: \.self) { game in
-                    gameButton(game) { session.launch(game) }
+                    Button { session.launch(game) } label: {
+                        VStack(spacing: 6) {
+                            PixelText(game == today ? "TODAY" : " ", scale: 1.5,
+                                      color: Pixel.gold, shadow: nil)
+                            PixelSprite(art: game.sprite, scale: 3)
+                            Text(game.title)
+                                .font(Pixel.mono(12, .bold))
+                                .foregroundColor(Pixel.cream)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                        }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PixelButtonStyle(palette: game == today ? Pixel.featured : Pixel.row))
                 }
             }
+            .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 16)
         }
-    }
-
-    private func gameButton(_ game: WebGame, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(game.emoji).font(.system(size: 24))
-                Text(game.title)
-                    .font(Theme.rounded(16, .bold))
-                    .foregroundColor(Theme.headerText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Theme.panelBorder, lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 }
 
-/// The expanded sheet: the game menu, or one game's site.
+/// The expanded sheet: the home screen, or one game's site.
 struct ExpandedView: View {
     @ObservedObject var session: GameSession
 
@@ -121,58 +115,102 @@ struct ExpandedView: View {
     }
 }
 
-/// Home screen: pick a game.
+/// Home screen: today's featured game up top, the rest below.
 struct GameMenu: View {
     let onPick: (WebGame) -> Void
+    var today = Date()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                Text("Sammy Word")
-                    .font(Theme.rounded(30, .heavy))
-                    .foregroundColor(Theme.headerText)
-                    .padding(.top, 16)
-                Text("Pick today's game")
-                    .font(Theme.rounded(15, .medium))
-                    .foregroundColor(Theme.mutedText)
-
-                ForEach(WebGame.allCases, id: \.self) { game in
-                    tile(game)
-                }
-            }
-            .padding(20)
-        }
+        ScrollView { content }
     }
 
-    private func tile(_ game: WebGame) -> some View {
-        Button { onPick(game) } label: {
+    var content: some View {
+        let featured = Daily.game(for: today)
+        let streak = Daily.streak(today)
+        return VStack(spacing: 20) {
+            VStack(spacing: 10) {
+                PixelText("SAMMY WORD", scale: 4, color: Pixel.gold, shadow: Pixel.goldDark)
+                PixelText("DAY \(Daily.number(today)) · \(Daily.label(today))",
+                          scale: 2, color: Pixel.muted, shadow: nil)
+            }
+            .padding(.top, 22)
+
+            hero(featured)
+
+            if streak > 0 {
+                HStack(spacing: 8) {
+                    PixelSprite(art: PixelSprites.flame, scale: 3)
+                    PixelText("\(streak) DAY STREAK", scale: 2, color: Color(hex: 0xFFB13B))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                PixelText("ALSO TODAY", scale: 2, color: Pixel.muted, shadow: nil)
+                    .padding(.leading, 2)
+                ForEach(WebGame.allCases.filter { $0 != featured }, id: \.self) { game in
+                    row(game)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 60)
+    }
+
+    private func hero(_ game: WebGame) -> some View {
+        let score = DailyStore.played(game, on: today)
+        return VStack(spacing: 14) {
+            HStack(spacing: 8) {
+                PixelText("★", scale: 2, color: Pixel.gold)
+                PixelText("GAME OF THE DAY", scale: 2, color: Pixel.gold)
+                PixelText("★", scale: 2, color: Pixel.gold)
+            }
+            ZStack {
+                PixelDisc(cells: 16, scale: 6, color: Color(hex: game.glow).opacity(0.28))
+                PixelDisc(cells: 13, scale: 6, color: Color(hex: game.glow).opacity(0.22))
+                PixelSprite(art: game.sprite, scale: 6)
+            }
+            PixelText(game.title, scale: 4)
+            Text(game.blurb)
+                .font(Pixel.mono(13))
+                .foregroundColor(Pixel.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            if let score {
+                PixelText("✓ TODAY: \(score)", scale: 2, color: Pixel.green)
+            }
+            Button { onPick(game) } label: {
+                PixelText(score == nil ? "▶ PLAY" : "▶ PLAY AGAIN", scale: 3)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(PixelButtonStyle(step: 4))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity)
+        .pixelBox(Pixel.featured, step: 4)
+    }
+
+    private func row(_ game: WebGame) -> some View {
+        let score = DailyStore.played(game, on: today)
+        return Button { onPick(game) } label: {
             HStack(spacing: 14) {
-                Text(game.emoji).font(.system(size: 34))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(game.title).font(Theme.rounded(19, .bold)).foregroundColor(Theme.headerText)
-                    Text(game.blurb).font(Theme.rounded(13, .medium)).foregroundColor(Theme.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
+                PixelSprite(art: game.sprite, scale: 3)
+                    .frame(width: 40)
+                VStack(alignment: .leading, spacing: 5) {
+                    PixelText(game.title, scale: 2)
+                    Text(score.map { "Done today · \($0)" } ?? game.blurb)
+                        .font(Pixel.mono(11))
+                        .foregroundColor(score == nil ? Pixel.muted : Pixel.green)
+                        .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 4)
+                PixelText(score == nil ? "▶" : "✓", scale: 2, color: score == nil ? Pixel.gold : Pixel.green)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Theme.panelBorder, lineWidth: 1)
-            )
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(PressButtonStyle())
-    }
-}
-
-/// Press feedback for cards.
-struct PressButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        .buttonStyle(PixelButtonStyle(palette: Pixel.row))
     }
 }

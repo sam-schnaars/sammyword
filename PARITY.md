@@ -27,6 +27,7 @@ on each side. This file is the contract that keeps them in sync.
 | Flag Match (timed flag→country quiz) + challenge | `flags.js`, `FlagMatch.jsx`, `share.js` (`#f=`) | — (removed) | 🌐 web only |
 | Deep Cut (rare-answer trivia) + challenge | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json`, `share.js` (`#d=`) | — (removed) | 🌐 web only |
 | Mode picker | `App.jsx` (`ModeSelect`: Word Hunt / Flag Match / Deep Cut) | `RootView.swift` (`GameMenu`, compact bar: Krillion / Magnitudle / 100 of Us / Eraly) | ⚠️ different games |
+| Game of the day home (one featured game a day in turn, day number, played-today ticks, streak) in a pixel-art look (5×7 pixel font, sprites, bevelled boxes, dusk sky) | — | `RootView.swift` (`GameMenu`), `DailyStore.swift` (`Daily`, `DailyStore.record`), `PixelArt.swift`, `Theme.swift` | ⚠️ iOS only |
 | Krillion in Messages (opens straight into krillion.io's daily dive in a web view; the finished score sends itself as a picture bubble, `g=k` + `ks/kd/kr/cn`) | — | `WebGameView.swift`, `GameMessage.swift` (`WebGame`, `WebScorePayload`), `ScoreImageRenderer.swift` | ⚠️ iOS only |
 | Magnitudle in Messages (magnitudle.com's Daily Question in a web view; the score out of 100 sends itself as a picture bubble, `g=m` + `ks/kd/cn`) | — | `WebGameView.swift`, `GameMessage.swift`, `ScoreImageRenderer.swift` | ⚠️ iOS only |
 | 100 of Us in Messages (logicers.com/100-of-us in a web view; how far off the guess was sends itself as a picture bubble, `g=h` + `ks` = off-by, `kr` = guess.answer, `kd/cn`) | — | `WebGameView.swift`, `GameMessage.swift`, `ScoreImageRenderer.swift` | ⚠️ iOS only |
@@ -57,6 +58,14 @@ on each side. This file is the contract that keeps them in sync.
   - Eraly: auto-presses a visible "Start the journey"; reads
     `eraly:result:<day>` (`total`, `results[].pts`) once the "N/700" screen
     shows. Live = that day's result key appeared after the page opened.
+- **Game of the day + pixel-art redesign (iOS only, by request, 2026-11-18).**
+  The iMessage home screen features one game a day, rotating Krillion →
+  Magnitudle → 100 of Us → Eraly (Day 1 = 2026-11-18, local calendar), with the
+  others under "Also today", ticks for games finished today and a streak of
+  days the featured game was finished (kept on the device, ~60 days). The
+  whole iMessage app moved to a pixel-art look. The web prototype keeps its
+  old mode picker and look: it carries different games, so a shared rotation
+  doesn't apply; restyling it is open.
 - **Leaderboard backend URL.** Web calls the same-origin `/api/leaderboard`
   (served by `api/leaderboard.js` on Vercel). iOS no longer has a leaderboard.
 - **Redesign concepts (web only, temporary).** `concepts/` holds three playable

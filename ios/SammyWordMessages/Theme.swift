@@ -9,7 +9,7 @@ enum Theme {
     static let bgDark = Color(hex: 0x0C0C10)
     static let bgStripeA = Color(hex: 0x0E0E14)
     static let bgStripeB = Color(hex: 0x111118)
-    static var background: some View { StripedBackground() }
+    static var background: some View { PixelSky() }
 
     // Board frame
     static let boardPanel = Color(hex: 0x16171E)
@@ -65,31 +65,6 @@ enum Theme {
     // Fonts (Fredoka-ish rounded for UI, heavy for letters)
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
-    }
-}
-
-/// Near-black background with the web app's faint 45° metal stripes.
-struct StripedBackground: View {
-    var body: some View {
-        Canvas { ctx, size in
-            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.bgStripeA))
-            let stripe: CGFloat = 14
-            let band = stripe * 2
-            let h = size.height
-            var x = -h
-            while x < size.width {
-                var p = Path()
-                p.move(to: CGPoint(x: x, y: 0))
-                p.addLine(to: CGPoint(x: x + stripe, y: 0))
-                p.addLine(to: CGPoint(x: x + stripe - h, y: h))
-                p.addLine(to: CGPoint(x: x - h, y: h))
-                p.closeSubpath()
-                ctx.fill(p, with: .color(Theme.bgStripeB))
-                x += band
-            }
-        }
-        .background(Theme.bgDark)
-        .ignoresSafeArea()
     }
 }
 

@@ -45,13 +45,13 @@ final class MessagesViewController: MSMessagesAppViewController {
         syncPresentation()
     }
 
-    /// Opening the app fresh goes straight into Krillion, and a friend's bubble
-    /// goes straight into that game: full height, no bar, no menu. Only on
+    /// Opening the app fresh goes full height onto the home screen (game of the
+    /// day up top), and a friend's bubble goes straight into that game. Only on
     /// activation, so swiping down still collapses.
     override func didBecomeActive(with conversation: MSConversation) {
         super.didBecomeActive(with: conversation)
         guard presentationStyle == .compact else { return }
-        session.launchMode = session.incoming?.game ?? .krillion
+        session.launchMode = session.incoming?.game
         requestPresentationStyle(.expanded)
     }
 
