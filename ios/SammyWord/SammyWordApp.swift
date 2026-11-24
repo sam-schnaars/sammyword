@@ -9,6 +9,23 @@ struct SammyWordApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.dark)
+                .modifier(ForwardGameLinks())
+        }
+    }
+}
+
+/// A Messages extension can only open its own app, so when you tap "Play on
+/// krillion.io" in Messages, iOS hands that link to this app. Pass it straight
+/// on to Safari, but only for the four game sites.
+struct ForwardGameLinks: ViewModifier {
+    @Environment(\.openURL) private var openURL
+
+    func body(content: Content) -> some View {
+        content.onOpenURL { url in
+            guard url.scheme == "https",
+                  Game.web.contains(where: { $0.site?.host == url.host })
+            else { return }
+            openURL(url)
         }
     }
 }
@@ -65,15 +82,20 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 PixelText("THE GAMES", scale: 2, color: Pixel.muted, shadow: nil)
-                ForEach(WebGame.allCases, id: \.self) { game in
+                ForEach(Game.own + Game.web, id: \.self) { game in
                     HStack(spacing: 12) {
                         PixelSprite(art: game.sprite, scale: 2)
                             .frame(width: 26)
                         PixelText(game.title, scale: 2)
                         Spacer()
+                        if game.isWeb {
+                            Text("by its creators")
+                                .font(Pixel.mono(10))
+                                .foregroundColor(Pixel.muted)
+                        }
                     }
                 }
-                Text("The daily games are made by their own creators and open in an in-app browser. Sammy Word isn't affiliated with them.")
+                Text(Self.webNote)
                     .font(Pixel.mono(11))
                     .foregroundColor(Pixel.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -93,6 +115,12 @@ struct ContentView: View {
         .padding(.horizontal, 18)
         .padding(.bottom, 60)
     }
+
+    #if HOSTED_EMBED
+    static let webNote = "Word Hunt, Flag Match and Doodle are Sammy Word's own. The other daily games are made by their own creators and open in an in-app browser. Sammy Word isn't affiliated with them."
+    #else
+    static let webNote = "Word Hunt, Flag Match and Doodle are Sammy Word's own. The other daily games are made by their own creators and open on their websites. Sammy Word isn't affiliated with them."
+    #endif
 
     private func step(_ n: Int, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 12) {

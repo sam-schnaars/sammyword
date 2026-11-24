@@ -13,13 +13,13 @@ enum DailyStore {
     }
 
     /// The score text of `game` finished on `date`, or nil if not played.
-    static func played(_ game: WebGame, on date: Date = Date()) -> String? {
+    static func played(_ game: Game, on date: Date = Date()) -> String? {
         let all = defaults.dictionary(forKey: playedKey) as? [String: String] ?? [:]
         return all["\(Daily.stamp(date))|\(game.rawValue)"]
     }
 
     /// Remember today's result (keeps about two months).
-    static func record(_ result: WebScorePayload, on date: Date = Date()) {
+    static func record(_ result: ScorePayload, on date: Date = Date()) {
         var all = defaults.dictionary(forKey: playedKey) as? [String: String] ?? [:]
         all["\(Daily.stamp(date))|\(result.game.rawValue)"] = result.scoreText
         let cutoff = Daily.stamp(Daily.calendar.date(byAdding: .day, value: -60, to: date) ?? date)
@@ -40,8 +40,17 @@ enum Daily {
         return days + 1
     }
 
-    static func game(for date: Date = Date()) -> WebGame {
-        let all = WebGame.allCases
+    /// The games that take turns being featured. App Store builds feature only
+    /// our own games (the web ones are listed below them); TestFlight builds
+    /// rotate through the web games too.
+    #if HOSTED_EMBED
+    static let rotation: [Game] = [.wordHunt, .krillion, .flagMatch, .magnitudle, .hundredOfUs, .eraly]
+    #else
+    static let rotation: [Game] = [.wordHunt, .flagMatch]
+    #endif
+
+    static func game(for date: Date = Date()) -> Game {
+        let all = rotation
         let i = ((number(date) - 1) % all.count + all.count) % all.count
         return all[i]
     }

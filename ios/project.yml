@@ -30,6 +30,9 @@ targets:
       - SammyWordMessages/Theme.swift
       - SammyWordMessages/GameMessage.swift
       - SammyWordMessages/DailyStore.swift
+      - SammyWordMessages/Flags.swift
+      - SammyWordMessages/SeededRNG.swift
+      - SammyWordMessages/Doodle.swift
     settings:
       base:
         INFOPLIST_FILE: SammyWord/Info.plist

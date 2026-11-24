@@ -1,3 +1,7 @@
+// The embedded versions of the web games, for TestFlight builds only. App
+// Store builds open those games in Safari instead (see ExternalGameView),
+// because they belong to other people. Build with HOSTED_EMBED to include this.
+#if HOSTED_EMBED
 import SwiftUI
 import WebKit
 
@@ -8,14 +12,14 @@ import WebKit
 ///
 /// Like `MessagesViewController`, this is platform glue (WebKit), not game logic.
 struct WebGameView: View {
-    let game: WebGame
+    let game: Game
     /// A friend's result for this same game, when opened from their bubble.
-    let incoming: WebScorePayload?
+    let incoming: ScorePayload?
     @ObservedObject var session: GameSession
     let onHome: () -> Void
 
     /// Today's finished result, once the page reports one.
-    @State private var result: WebScorePayload?
+    @State private var result: ScorePayload?
     @State private var status: SendStatus = .idle
     @State private var load: WebLoad = .loading
     @State private var reloadToken = 0
@@ -101,7 +105,7 @@ struct WebGameView: View {
         .background(Theme.background)
     }
 
-    private func pillText(_ result: WebScorePayload) -> String {
+    private func pillText(_ result: ScorePayload) -> String {
         switch status {
         case .idle: return "Send \(result.scoreText)"
         case .sending: return "Sending…"
@@ -110,7 +114,7 @@ struct WebGameView: View {
         }
     }
 
-    private func deliver(_ payload: WebScorePayload) {
+    private func deliver(_ payload: ScorePayload) {
         guard status != .sending else { return }
         status = .sending
         session.sendNow(payload) { failure in
@@ -125,20 +129,15 @@ enum WebLoad: Equatable { case loading, slow, failed, ready }
 /// WKWebView wrapper. A per-game script injected before the page loads drives
 /// the page (where needed) and reports the finished score exactly once.
 struct WebGameWebView: UIViewRepresentable {
-    let game: WebGame
+    let game: Game
     let reloadToken: Int
     let onLoad: (WebLoad) -> Void
     /// (result, live): `live` is true when the round finished while we watched
     /// (as opposed to opening a day that was already played).
-    let onDone: (WebScorePayload, Bool) -> Void
+    let onDone: (ScorePayload, Bool) -> Void
 
-    static func url(for game: WebGame) -> URL {
-        switch game {
-        case .krillion: return URL(string: "https://krillion.io/")!
-        case .magnitudle: return URL(string: "https://magnitudle.com/daily")!
-        case .hundredOfUs: return URL(string: "https://logicers.com/100-of-us/")!
-        case .eraly: return URL(string: "https://eraly.io/")!
-        }
+    static func url(for game: Game) -> URL {
+        game.site ?? URL(string: "about:blank")!
     }
 
     /// Shared tail: hand the result to Swift.
@@ -295,6 +294,7 @@ struct WebGameWebView: UIViewRepresentable {
         case .magnitudle: return Self.magnitudle
         case .hundredOfUs: return Self.hundredOfUs
         case .eraly: return Self.eraly
+        default: return ""
         }
     }
 
@@ -334,13 +334,13 @@ struct WebGameWebView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
-        let game: WebGame
+        let game: Game
         var onLoad: (WebLoad) -> Void
-        var onDone: (WebScorePayload, Bool) -> Void
+        var onDone: (ScorePayload, Bool) -> Void
         var lastToken = 0
         var slowTimer: Timer?
 
-        init(game: WebGame, onLoad: @escaping (WebLoad) -> Void, onDone: @escaping (WebScorePayload, Bool) -> Void) {
+        init(game: Game, onLoad: @escaping (WebLoad) -> Void, onDone: @escaping (ScorePayload, Bool) -> Void) {
             self.game = game
             self.onLoad = onLoad
             self.onDone = onDone
@@ -395,7 +395,7 @@ struct WebGameWebView: UIViewRepresentable {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let score = json["score"] as? Int
             else { return }
-            let payload = WebScorePayload(
+            let payload = ScorePayload(
                 game: game,
                 score: score,
                 day: json["day"] as? Int,
@@ -406,3 +406,5 @@ struct WebGameWebView: UIViewRepresentable {
         }
     }
 }
+
+#endif

@@ -29,8 +29,12 @@ struct CompactView: View {
                 VStack(spacing: 10) {
                     PixelSprite(art: p.game.sprite, scale: 4)
                     PixelText("SAMMY WORD", scale: 3, color: Pixel.gold, shadow: Pixel.goldDark)
-                    Text(p.score == nil
+                    Text(p.isDoodlePrompt
+                         ? "\(p.senderName ?? "A friend") drew something — tap to guess"
+                         : p.score == nil
                          ? "\(p.senderName ?? "A friend") wants to play \(p.game.title) — tap to play"
+                         : p.game == .doodle
+                         ? "\(p.senderName ?? "A friend") \(p.brag) — tap to draw the next one"
                          : "\(p.senderName ?? "A friend") \(p.brag) on \(p.game.title) — tap to beat it")
                         .font(Pixel.mono(14, .semibold))
                         .foregroundColor(Pixel.cream)
@@ -43,8 +47,9 @@ struct CompactView: View {
             .buttonStyle(.plain)
         } else {
             let today = Daily.game()
+            ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(WebGame.allCases, id: \.self) { game in
+                ForEach(Game.own + Game.web, id: \.self) { game in
                     Button { session.launch(game) } label: {
                         VStack(spacing: 6) {
                             PixelText(game == today ? "TODAY" : " ", scale: 1.5,
@@ -57,12 +62,13 @@ struct CompactView: View {
                                 .minimumScaleFactor(0.6)
                         }
                         .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 84)
                     }
                     .buttonStyle(PixelButtonStyle(palette: game == today ? Pixel.featured : Pixel.row))
                 }
             }
             .padding(.horizontal, 14)
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -72,7 +78,7 @@ struct CompactView: View {
 struct ExpandedView: View {
     @ObservedObject var session: GameSession
 
-    enum Screen: Equatable { case menu, web(WebGame) }
+    enum Screen: Equatable { case menu, play(Game) }
     @State private var screen: Screen = .menu
     @State private var kicked = false
 
@@ -80,15 +86,13 @@ struct ExpandedView: View {
         Group {
             switch screen {
             case .menu:
-                GameMenu { screen = .web($0) }
-            case let .web(game):
-                WebGameView(
-                    game: game,
-                    incoming: session.incoming.flatMap { $0.game == game ? $0 : nil },
-                    session: session,
-                    onHome: { screen = .menu }
-                )
-                .id(game)
+                GameMenu { screen = .play($0) }
+            case let .play(game):
+                GameScreen(game: game,
+                           incoming: session.incoming.flatMap { $0.game == game ? $0 : nil },
+                           session: session,
+                           onHome: { screen = .menu })
+                    .id(game)
             }
         }
         .onAppear(perform: begin)
@@ -101,7 +105,7 @@ struct ExpandedView: View {
         guard !kicked else { return }
         kicked = true
         if !routeIncoming(), let game = session.launchMode {
-            screen = .web(game)
+            screen = .play(game)
         }
         session.launchMode = nil
     }
@@ -110,14 +114,37 @@ struct ExpandedView: View {
     @discardableResult
     private func routeIncoming() -> Bool {
         guard let p = session.incoming else { return false }
-        screen = .web(p.game)
+        screen = .play(p.game)
         return true
+    }
+}
+
+/// One game's screen. Web games open on their creators' sites in App Store
+/// builds; TestFlight builds (HOSTED_EMBED) play them inside Messages.
+struct GameScreen: View {
+    let game: Game
+    let incoming: ScorePayload?
+    @ObservedObject var session: GameSession
+    let onHome: () -> Void
+
+    var body: some View {
+        switch game {
+        case .wordHunt: WordHuntView(incoming: incoming, session: session, onHome: onHome)
+        case .flagMatch: FlagMatchView(incoming: incoming, session: session, onHome: onHome)
+        case .doodle: DoodleView(incoming: incoming, session: session, onHome: onHome)
+        default:
+            #if HOSTED_EMBED
+            WebGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            #else
+            ExternalGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            #endif
+        }
     }
 }
 
 /// Home screen: today's featured game up top, the rest below.
 struct GameMenu: View {
-    let onPick: (WebGame) -> Void
+    let onPick: (Game) -> Void
     var today = Date()
 
     var body: some View {
@@ -144,19 +171,14 @@ struct GameMenu: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                PixelText("ALSO TODAY", scale: 2, color: Pixel.muted, shadow: nil)
-                    .padding(.leading, 2)
-                ForEach(WebGame.allCases.filter { $0 != featured }, id: \.self) { game in
-                    row(game)
-                }
-            }
+            section("OUR GAMES", nil, Game.own.filter { $0 != featured })
+            section("MORE DAILY GAMES", Self.webNote, Game.web.filter { $0 != featured })
         }
         .padding(.horizontal, 18)
         .padding(.bottom, 60)
     }
 
-    private func hero(_ game: WebGame) -> some View {
+    private func hero(_ game: Game) -> some View {
         let score = DailyStore.played(game, on: today)
         return VStack(spacing: 14) {
             HStack(spacing: 8) {
@@ -191,7 +213,24 @@ struct GameMenu: View {
         .pixelBox(Pixel.featured, step: 4)
     }
 
-    private func row(_ game: WebGame) -> some View {
+    #if HOSTED_EMBED
+    static let webNote = "Made by their own creators."
+    #else
+    static let webNote = "Made by their own creators. They open on their websites."
+    #endif
+
+    private func section(_ title: String, _ note: String?, _ games: [Game]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            PixelText(title, scale: 2, color: Pixel.muted, shadow: nil)
+                .padding(.leading, 2)
+            if let note {
+                Text(note).font(Pixel.mono(11)).foregroundColor(Pixel.muted.opacity(0.8)).padding(.leading, 2)
+            }
+            ForEach(games, id: \.self) { row($0) }
+        }
+    }
+
+    private func row(_ game: Game) -> some View {
         let score = DailyStore.played(game, on: today)
         return Button { onPick(game) } label: {
             HStack(spacing: 14) {
@@ -199,7 +238,7 @@ struct GameMenu: View {
                     .frame(width: 40)
                 VStack(alignment: .leading, spacing: 5) {
                     PixelText(game.title, scale: 2)
-                    Text(score.map { "Done today · \($0)" } ?? game.blurb)
+                    Text(game.isDaily ? (score.map { "Done today · \($0)" } ?? game.blurb) : game.blurb)
                         .font(Pixel.mono(11))
                         .foregroundColor(score == nil ? Pixel.muted : Pixel.green)
                         .lineLimit(2)

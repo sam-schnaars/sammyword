@@ -15,15 +15,157 @@ extension UIColor {
 /// apart from `MessagesViewController` so it can be rendered on its own.
 /// Krillion: the score in huge type over a deep-sea gradient, with one colored
 /// block per prompt showing how rare each answer was. Plain shapes and text only.
-enum WebScoreImageRenderer {
-    static func image(for payload: WebScorePayload, size: CGFloat = 320) -> UIImage {
+enum ScoreImageRenderer {
+    static func image(for payload: ScorePayload, size: CGFloat = 320) -> UIImage {
         switch payload.game {
+        case .wordHunt: return wordHunt(payload, size: size)
+        case .flagMatch: return flagMatch(payload, size: size)
+        case .doodle: return doodle(payload, size: size)
         case .krillion: return krillion(payload, size: size)
         case .magnitudle: return magnitudle(payload, size: size)
         case .hundredOfUs: return hundredOfUs(payload, size: size)
         case .eraly: return eraly(payload, size: size)
         }
     }
+
+    // MARK: Our games (pixel-art look)
+
+    /// The app's dusk sky in hard bands, with a few stars.
+    private static func dusk(_ cg: CGContext, _ size: CGFloat) {
+        let bands: [UInt] = [0x0B0A1F, 0x100E2A, 0x161335, 0x1E1842, 0x281E4F, 0x34245A]
+        let h = size / CGFloat(bands.count)
+        for (i, c) in bands.enumerated() {
+            UIColor(hex: c).setFill()
+            cg.fill(CGRect(x: 0, y: CGFloat(i) * h, width: size, height: h + 1))
+        }
+        UIColor(hex: 0xC9CFFF).setFill()
+        for (x, y) in [(0.07, 0.07), (0.2, 0.18), (0.86, 0.1), (0.93, 0.27), (0.62, 0.05), (0.12, 0.4)] {
+            cg.fill(CGRect(x: size * x, y: size * y, width: size * 0.012, height: size * 0.012))
+        }
+    }
+
+    /// A chunky bevelled box like the app's buttons.
+    private static func pixelBox(_ cg: CGContext, _ r: CGRect, fill: UInt, light: UInt, dark: UInt, step s: CGFloat) {
+        UIColor(hex: 0x0A0818).setFill()
+        cg.fill(r)
+        let inner = r.insetBy(dx: s, dy: s)
+        UIColor(hex: fill).setFill(); cg.fill(inner)
+        UIColor(hex: light).setFill()
+        cg.fill(CGRect(x: inner.minX, y: inner.minY, width: inner.width, height: s))
+        cg.fill(CGRect(x: inner.minX, y: inner.minY, width: s, height: inner.height))
+        UIColor(hex: dark).setFill()
+        cg.fill(CGRect(x: inner.minX, y: inner.maxY - s, width: inner.width, height: s))
+        cg.fill(CGRect(x: inner.maxX - s, y: inner.minY, width: s, height: inner.height))
+    }
+
+    private static let gold = UIColor(hex: 0xFFC94A), cream = UIColor(hex: 0xF6EEDC), lilac = UIColor(hex: 0xA59CD6)
+
+    /// Word Hunt: the score in big type and the best words as tiles.
+    static func wordHunt(_ payload: ScorePayload, size: CGFloat) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
+            let cg = ctx.cgContext
+            dusk(cg, size)
+            let title = "WORD HUNT" + (payload.day.map { " · DAY \($0)" } ?? "")
+            text(title, .monospacedSystemFont(ofSize: size * 0.06, weight: .heavy), gold,
+                 CGRect(x: 0, y: size * 0.07, width: size, height: size * 0.09), kern: 2)
+            guard let score = payload.score else {
+                text("Today's\nletters", .monospacedSystemFont(ofSize: size * 0.12, weight: .black), cream,
+                     CGRect(x: 0, y: size * 0.3, width: size, height: size * 0.32))
+                return
+            }
+            text(String(score), .monospacedDigitSystemFont(ofSize: size * 0.24, weight: .black), cream,
+                 CGRect(x: 0, y: size * 0.17, width: size, height: size * 0.3))
+            // The best words as little letter tiles.
+            let words = Array(payload.marks.prefix(3))
+            let tile = size * 0.075, gap = size * 0.012
+            for (row, word) in words.enumerated() {
+                let letters = Array(word.uppercased().prefix(10))
+                let w = CGFloat(letters.count) * (tile + gap) - gap
+                var x = (size - w) / 2
+                let y = size * 0.5 + CGFloat(row) * (tile + gap * 3)
+                for ch in letters {
+                    pixelBox(cg, CGRect(x: x, y: y, width: tile, height: tile),
+                             fill: 0x4A4870, light: 0x77749E, dark: 0x2A2848, step: size * 0.008)
+                    text(String(ch), .monospacedSystemFont(ofSize: tile * 0.6, weight: .heavy), cream,
+                         CGRect(x: x, y: y + tile * 0.12, width: tile, height: tile))
+                    x += tile + gap
+                }
+            }
+            text("\(payload.senderName.map { "\($0) scored" } ?? "My score") · can you beat it?",
+                 .systemFont(ofSize: size * 0.05, weight: .semibold), lilac,
+                 CGRect(x: size * 0.04, y: size * 0.86, width: size * 0.92, height: size * 0.08))
+        }
+    }
+
+    /// Flag Match: flags right out of 12, as a row of lit-up flag squares.
+    static func flagMatch(_ payload: ScorePayload, size: CGFloat) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
+            let cg = ctx.cgContext
+            dusk(cg, size)
+            let title = "FLAG MATCH" + (payload.day.map { " · DAY \($0)" } ?? "")
+            text(title, .monospacedSystemFont(ofSize: size * 0.06, weight: .heavy), gold,
+                 CGRect(x: 0, y: size * 0.07, width: size, height: size * 0.09), kern: 2)
+            guard let score = payload.score else {
+                text("Today's\nflags", .monospacedSystemFont(ofSize: size * 0.12, weight: .black), cream,
+                     CGRect(x: 0, y: size * 0.3, width: size, height: size * 0.32))
+                return
+            }
+            text("\(score)", .monospacedDigitSystemFont(ofSize: size * 0.26, weight: .black), cream,
+                 CGRect(x: size * 0.02, y: size * 0.17, width: size * 0.56, height: size * 0.32), align: .right)
+            text("/\(Flags.questions)", .monospacedSystemFont(ofSize: size * 0.08, weight: .bold), gold,
+                 CGRect(x: size * 0.6, y: size * 0.36, width: size * 0.36, height: size * 0.1), align: .left)
+            let n = Flags.questions, gap = size * 0.014
+            let w = (size * 0.84 - gap * CGFloat(n - 1)) / CGFloat(n)
+            for i in 0..<n {
+                let r = CGRect(x: size * 0.08 + CGFloat(i) * (w + gap), y: size * 0.6, width: w, height: w * 1.4)
+                if i < score {
+                    pixelBox(cg, r, fill: 0x2E9E5B, light: 0x7BE89A, dark: 0x16603A, step: size * 0.006)
+                } else {
+                    pixelBox(cg, r, fill: 0x1C173B, light: 0x302A62, dark: 0x120E2A, step: size * 0.006)
+                }
+            }
+            text("\(payload.senderName.map { "\($0) named" } ?? "I named") \(score) · can you beat it?",
+                 .systemFont(ofSize: size * 0.05, weight: .semibold), lilac,
+                 CGRect(x: size * 0.04, y: size * 0.84, width: size * 0.92, height: size * 0.08))
+        }
+    }
+
+    /// Doodle: the drawing itself in a pixel frame, plus what to do next.
+    static func doodle(_ payload: ScorePayload, size: CGFloat) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
+            let cg = ctx.cgContext
+            dusk(cg, size)
+            let cells = Doodle.decode(payload.drawing ?? "")
+            let n = Doodle.size
+            let frame = size * 0.6, cell = (frame / CGFloat(n)).rounded(.down)
+            let side = cell * CGFloat(n)
+            let origin = CGPoint(x: (size - side) / 2, y: size * 0.07)
+            pixelBox(cg, CGRect(x: origin.x - size * 0.025, y: origin.y - size * 0.025,
+                                width: side + size * 0.05, height: side + size * 0.05),
+                     fill: 0x241E4A, light: 0xFFC94A, dark: 0xB5762A, step: size * 0.01)
+            for i in 0..<(n * n) {
+                UIColor(hex: Doodle.palette[cells[i]]).setFill()
+                cg.fill(CGRect(x: origin.x + CGFloat(i % n) * cell, y: origin.y + CGFloat(i / n) * cell,
+                               width: cell + 0.5, height: cell + 0.5))
+            }
+            let word = Doodle.word(forSecret: payload.secret)
+            let headline: String, foot: String
+            if payload.score == nil {
+                headline = "GUESS MY DOODLE"
+                foot = word.map { String(repeating: "_ ", count: $0.count).trimmingCharacters(in: .whitespaces) } ?? "tap to guess"
+            } else {
+                let w = (payload.marks.first ?? "it").uppercased()
+                headline = payload.score == 0 ? "IT WAS \(w)" : "GOT IT: \(w)"
+                foot = "your turn to draw"
+            }
+            text(headline, .monospacedSystemFont(ofSize: size * 0.065, weight: .heavy), gold,
+                 CGRect(x: 0, y: size * 0.74, width: size, height: size * 0.09), kern: 1.5)
+            text(foot, .monospacedSystemFont(ofSize: size * 0.05, weight: .bold), cream,
+                 CGRect(x: 0, y: size * 0.85, width: size, height: size * 0.08), kern: 1)
+        }
+    }
+
+    // MARK: Web games
 
     private static func color(for tier: String) -> UIColor {
         switch tier {
@@ -36,7 +178,7 @@ enum WebScoreImageRenderer {
         }
     }
 
-    static func krillion(_ payload: WebScorePayload, size: CGFloat) -> UIImage {
+    static func krillion(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
         return renderer.image { ctx in
             let cg = ctx.cgContext
@@ -102,7 +244,7 @@ enum WebScoreImageRenderer {
 
     /// Magnitudle: the site's near-black and signal red, the score out of 100
     /// in huge type, and a ten-notch meter filled to the score.
-    static func magnitudle(_ payload: WebScorePayload, size: CGFloat) -> UIImage {
+    static func magnitudle(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
             let cg = ctx.cgContext
             let red = UIColor(hex: 0xE5484D), dim = UIColor(hex: 0x8A8F98)
@@ -151,7 +293,7 @@ enum WebScoreImageRenderer {
     /// 100 of Us: a crowd of 100 dots. Dots up to the real answer are filled,
     /// the stretch between guess and answer is the miss, and the headline is
     /// how far off it was.
-    static func hundredOfUs(_ payload: WebScorePayload, size: CGFloat) -> UIImage {
+    static func hundredOfUs(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
             let cg = ctx.cgContext
             let ink = UIColor(hex: 0x1D2433), teal = UIColor(hex: 0x1F8A70),
@@ -200,7 +342,7 @@ enum WebScoreImageRenderer {
 
     /// Eraly: a pixel-art dusk like the site's, the score out of 700 in gold,
     /// and one block per moment colored by how close the year was.
-    static func eraly(_ payload: WebScorePayload, size: CGFloat) -> UIImage {
+    static func eraly(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
             let cg = ctx.cgContext
             let gold = UIColor(hex: 0xF2C14E), cream = UIColor(hex: 0xF6E7C8)

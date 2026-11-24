@@ -17,6 +17,9 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.requestCollapse = { [weak self] in
             self?.requestPresentationStyle(.compact)
         }
+        session.openURL = { [weak self] url in
+            self?.extensionContext?.open(url, completionHandler: nil)
+        }
         session.sendNow = { [weak self] payload, done in
             guard let self else { return done("closed") }
             self.sendNow(payload, done: done)
@@ -41,7 +44,7 @@ final class MessagesViewController: MSMessagesAppViewController {
 
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
-        updateIncoming(from: conversation.selectedMessage)
+        updateIncoming(from: conversation.selectedMessage, in: conversation)
         syncPresentation()
     }
 
@@ -57,7 +60,7 @@ final class MessagesViewController: MSMessagesAppViewController {
 
     override func didSelect(_ message: MSMessage, conversation: MSConversation) {
         super.didSelect(message, conversation: conversation)
-        updateIncoming(from: message)
+        updateIncoming(from: message, in: conversation)
     }
 
     override func willTransition(to presentationStyle: MSMessagesAppPresentationStyle) {
@@ -69,19 +72,20 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.presentation = (style ?? presentationStyle) == .expanded ? .expanded : .compact
     }
 
-    private func updateIncoming(from message: MSMessage?) {
+    private func updateIncoming(from message: MSMessage?, in conversation: MSConversation) {
+        session.incomingIsMine = message.map { $0.senderParticipantIdentifier == conversation.localParticipantIdentifier } ?? false
         session.incoming = GameMessage.decode(message?.url)
     }
 
     // MARK: - Sending
 
-    private func makeMessage(_ payload: WebScorePayload, in conversation: MSConversation) -> MSMessage {
+    private func makeMessage(_ payload: ScorePayload, in conversation: MSConversation) -> MSMessage {
         // Reuse the tapped bubble's session so earlier bubbles in the thread
         // collapse; otherwise start a new one.
         let message = MSMessage(session: conversation.selectedMessage?.session ?? MSSession())
         let layout = MSMessageTemplateLayout()
         layout.caption = payload.caption
-        layout.image = WebScoreImageRenderer.image(for: payload)
+        layout.image = ScoreImageRenderer.image(for: payload)
         message.layout = layout
         message.url = GameMessage.encode(payload)
         return message
@@ -92,7 +96,7 @@ final class MessagesViewController: MSMessagesAppViewController {
     /// refuse (or never answer). Whatever happens the player ends up looking at
     /// the chat: on success the bubble is in the transcript; otherwise it is
     /// staged in the input field, one tap on the arrow from sent.
-    private func sendNow(_ payload: WebScorePayload, done: @escaping (String?) -> Void) {
+    private func sendNow(_ payload: ScorePayload, done: @escaping (String?) -> Void) {
         guard let conversation = activeConversation else { return done("no chat") }
         let message = makeMessage(payload, in: conversation)
         var settled = false

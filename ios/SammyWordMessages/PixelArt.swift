@@ -78,6 +78,8 @@ enum PixelFont {
         ",": [".....", ".....", ".....", ".....", ".....", "..#..", ".#..."],
         ":": [".....", "..#..", ".....", ".....", ".....", "..#..", "....."],
         "'": ["..#..", "..#..", ".....", ".....", ".....", ".....", "....."],
+        "+": [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."],
+        "_": [".....", ".....", ".....", ".....", ".....", ".....", "#####"],
         "-": [".....", ".....", ".....", "#####", ".....", ".....", "....."],
         "/": ["....#", "....#", "...#.", "..#..", ".#...", "#....", "#...."],
         "#": [".#.#.", ".#.#.", "#####", ".#.#.", "#####", ".#.#.", ".#.#."],
@@ -160,9 +162,55 @@ struct PixelSprite: View {
     }
 }
 
-extension WebGame {
+extension Game {
     var sprite: PixelArt {
         switch self {
+        case .wordHunt:
+            return PixelArt(rows: [
+                "oooooooooooo",
+                "ollllllllllo",
+                "olccccccccdo",
+                "olwccccccwdo",
+                "olwccccccwdo",
+                "olwccwwccwdo",
+                "olwccwwccwdo",
+                "olwcwccwcwdo",
+                "olwwccccwwdo",
+                "olccccccccdo",
+                "oddddddddddo",
+                "oooooooooooo",
+            ], palette: ["o": 0x0A0818, "l": 0x9C99CC, "c": 0x4A4870, "d": 0x2A2848, "w": 0xF6EEDC])
+        case .flagMatch:
+            return PixelArt(rows: [
+                "pp..........",
+                "pprrrrrrrr..",
+                "pprrrrrrrrr.",
+                "ppwwwwwwwww.",
+                "ppwwwwwwwww.",
+                "ppbbbbbbbbb.",
+                "ppbbbbbbbb..",
+                "pp..........",
+                "pp..........",
+                "pp..........",
+                "pp..........",
+                "pppp........",
+            ], palette: ["p": 0xC9CFE8, "r": 0xE5484D, "w": 0xF6EEDC, "b": 0x3B82F6])
+        case .doodle:
+            return PixelArt(rows: [
+                "..........yy",
+                ".........yyy",
+                "........yyy.",
+                "..oooo.yyy..",
+                ".orrbbyyy...",
+                "orrrbbyy....",
+                "oggrrpwo....",
+                "ogggppwwo...",
+                "oyyggppwo...",
+                ".oyyyppo....",
+                "..oooooo....",
+                "............",
+            ], palette: ["o": 0x0A0818, "r": 0xE5484D, "b": 0x3B82F6, "g": 0x4CD07D,
+                         "p": 0xA66BFF, "w": 0xF6EEDC, "y": 0xFFC94A])
         case .krillion:
             return PixelArt(rows: [
                 "ff..........",
@@ -227,6 +275,9 @@ extension WebGame {
     /// The color the game glows in on the home screen.
     var glow: UInt {
         switch self {
+        case .wordHunt: return 0x7AB8F5
+        case .flagMatch: return 0xE5484D
+        case .doodle: return 0xA66BFF
         case .krillion: return 0xFF8A65
         case .magnitudle: return 0xFF5A5A
         case .hundredOfUs: return 0x3FC9B0
