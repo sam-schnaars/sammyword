@@ -361,6 +361,21 @@ struct WebGameWebView: UIViewRepresentable {
             DispatchQueue.main.async { self.onLoad(state) }
         }
 
+        /// Keep the player on the game's own site: a tapped ad or outside link
+        /// doesn't navigate away (no open web browsing inside the app). Embedded
+        /// frames, such as the site's ads, still load inside the page. Links that
+        /// ask for a new window already do nothing, since there's no UI delegate.
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard action.targetFrame?.isMainFrame ?? false else { return decisionHandler(.allow) }
+            let home = WebGameWebView.url(for: game).host ?? ""
+            let site = home.split(separator: ".").suffix(2).joined(separator: ".")
+            let host = action.request.url?.host ?? ""
+            let scheme = action.request.url?.scheme ?? ""
+            let onSite = host == site || host.hasSuffix("." + site)
+            decisionHandler(onSite || scheme == "about" || scheme == "blob" || scheme == "data" ? .allow : .cancel)
+        }
+
         // The page is usable once its content has painted; ads may still be loading.
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { finish(.ready) }
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
