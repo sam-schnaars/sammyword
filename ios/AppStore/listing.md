@@ -73,7 +73,7 @@ Sammy Word is an iMessage app. To test it:
 
 The companion iPhone app explains these steps and has an Open Messages button.
 
-The four daily games (Krillion, Magnitudle, 100 of Us, Eraly) are third-party websites shown in a web view inside the app. The web view stays on each game's own site: links and ads that lead elsewhere don't open. [FILL IN BEFORE SUBMITTING: say whether each game's creator has given written permission, and attach the replies.]
+The four daily games (Krillion, Magnitudle, 100 of Us, Eraly) are third-party websites shown in a web view inside the app. The web view stays on each game's own site: links and ads that lead elsewhere don't open. We emailed each game's creator on November 23, 2026 to ask for permission and are waiting for replies. If any creator declines, we'll remove that game in an update.
 
 No account or login is required.
 
