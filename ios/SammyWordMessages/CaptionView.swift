@@ -98,6 +98,7 @@ struct CaptionView: View {
                     .foregroundColor(Pixel.muted)
             }
             NameField(prompt: "Name (optional)")
+            rules
             if offline {
                 chatButton(draft)
                     .disabled(draft.isEmpty)
@@ -109,6 +110,27 @@ struct CaptionView: View {
             }
         }
     }
+
+    /// The board's rules and how to reach us (App Store guideline 1.2):
+    /// submitting means agreeing to them.
+    private var rules: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Be kind. No hate, harassment, threats or sexual content. Slurs and sexual terms are filtered, and reported captions are hidden and reviewed. Submitting means you agree to these rules.")
+                .font(Pixel.mono(11))
+                .foregroundColor(Pixel.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { session.openURL(Self.support) } label: {
+                Text("Report a problem or contact us")
+                    .font(Pixel.mono(11, .bold))
+                    .foregroundColor(Pixel.gold)
+                    .underline()
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    static let support = URL(string: "https://www.samarei.com/sammyword/support")!
 
     private var hint: String {
         if loading { return "Loading today's captions..." }

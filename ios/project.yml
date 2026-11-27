@@ -33,6 +33,9 @@ targets:
       - SammyWordMessages/Flags.swift
       - SammyWordMessages/SeededRNG.swift
       - SammyWordMessages/Caption.swift
+      - SammyWordMessages/WebGamePage.swift
+      - SammyWordMessages/ScoreImageRenderer.swift
+      - SammyWordMessages/MemeImages.swift
     settings:
       base:
         INFOPLIST_FILE: SammyWord/Info.plist

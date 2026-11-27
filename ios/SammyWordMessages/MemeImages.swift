@@ -1,6 +1,6 @@
 import UIKit
 
-/// Today's meme picture, downloaded once from Imgflip and kept in memory so
+/// Today's meme picture, downloaded once from Wikimedia Commons and kept in memory so
 /// the caption screen and the chat bubble (`ScoreImageRenderer`) share it.
 enum MemeImages {
     private static let cache = NSCache<NSNumber, UIImage>()

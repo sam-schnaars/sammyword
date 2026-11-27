@@ -5,32 +5,42 @@ import SwiftUI
 /// to find Sammy Word in Messages, in the same pixel-art style.
 @main
 struct SammyWordApp: App {
+    /// Magnitudle or 100 of Us, when one is open full screen.
+    @State private var playing: Game?
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(onPlay: { playing = $0 })
                 .preferredColorScheme(.dark)
-                .modifier(ForwardGameLinks())
+                .modifier(ForwardGameLinks(onPlay: { playing = $0 }))
+                .fullScreenCover(item: $playing) { game in
+                    HostedGameScreen(game: game) { playing = nil }
+                        .preferredColorScheme(.dark)
+                }
         }
     }
 }
 
-/// A Messages extension can only open its own app, so when you tap "Play on
-/// krillion.io" in Messages, iOS hands that link to this app. Pass it straight
-/// on to Safari, but only for the four game sites.
+/// A Messages extension can only open its own app, so links tapped in
+/// Messages arrive here. `sammyword://play/<game>` opens Magnitudle or 100 of
+/// Us in this app; a game site or the support page is passed on to Safari.
+/// Anything else is ignored.
 struct ForwardGameLinks: ViewModifier {
+    let onPlay: (Game) -> Void
     @Environment(\.openURL) private var openURL
 
     func body(content: Content) -> some View {
         content.onOpenURL { url in
-            guard url.scheme == "https",
-                  Game.web.contains(where: { $0.site?.host == url.host })
-            else { return }
+            if let game = Game.from(appLink: url) { return onPlay(game) }
+            let allowed = Game.web.compactMap { $0.site?.host } + ["samarei.com", "www.samarei.com"]
+            guard url.scheme == "https", let host = url.host, allowed.contains(host) else { return }
             openURL(url)
         }
     }
 }
 
 struct ContentView: View {
+    var onPlay: (Game) -> Void = { _ in }
     var today = Date()
 
     var body: some View {
@@ -88,7 +98,12 @@ struct ContentView: View {
                             .frame(width: 26)
                         PixelText(game.title, scale: 2)
                         Spacer()
-                        if game.isWeb {
+                        if game.playsInApp {
+                            Button { onPlay(game) } label: {
+                                PixelText("▶ PLAY", scale: 1.5).padding(.horizontal, 8).padding(.vertical, 5)
+                            }
+                            .buttonStyle(PixelButtonStyle(step: 2))
+                        } else if game.isWeb {
                             Text("by its creators")
                                 .font(Pixel.mono(10))
                                 .foregroundColor(Pixel.muted)
@@ -119,7 +134,7 @@ struct ContentView: View {
     #if HOSTED_EMBED
     static let webNote = "Word Hunt, Flag Match, Caption the Meme and Scroll Recall are Sammy Word's own. The other daily games are made by their own creators and open in an in-app browser. Sammy Word isn't affiliated with them."
     #else
-    static let webNote = "Word Hunt, Flag Match, Caption the Meme and Scroll Recall are Sammy Word's own. The other daily games are made by their own creators and open on their websites. Sammy Word isn't affiliated with them."
+    static let webNote = "Word Hunt, Flag Match, Caption the Meme and Scroll Recall are Sammy Word's own. The other daily games are made by their own creators: Magnitudle and 100 of Us play here with their permission (and their ads), and the others open on their websites. Sammy Word isn't affiliated with them."
     #endif
 
     private func step(_ n: Int, _ text: String) -> some View {

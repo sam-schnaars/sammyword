@@ -133,9 +133,19 @@ struct GameScreen: View {
         case .reels: ReelsView(incoming: incoming, session: session, onHome: onHome)
         default:
             #if HOSTED_EMBED
-            WebGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            // TestFlight: sites play inside Messages, except Eraly, whose
+            // creators asked to stay out until they've tried the app.
+            if game == .eraly {
+                ExternalGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            } else {
+                WebGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            }
             #else
-            ExternalGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            if game.playsInApp {
+                InAppGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            } else {
+                ExternalGameView(game: game, incoming: incoming, session: session, onHome: onHome)
+            }
             #endif
         }
     }
@@ -215,7 +225,7 @@ struct GameMenu: View {
     #if HOSTED_EMBED
     static let webNote = "Made by their own creators."
     #else
-    static let webNote = "Made by their own creators. They open on their websites."
+    static let webNote = "Made by their own creators. Magnitudle and 100 of Us play in the Sammy Word app; the others open on their websites."
     #endif
 
     private func section(_ title: String, _ note: String?, _ games: [Game]) -> some View {

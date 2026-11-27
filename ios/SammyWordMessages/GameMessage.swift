@@ -88,6 +88,21 @@ enum Game: String, Equatable, CaseIterable {
         }
     }
 
+    /// Web games whose creators said yes to being played in Sammy Word, ads
+    /// and all (Magnitudle, 100 of Us). Apple doesn't allow ads inside an
+    /// iMessage extension, so they play in the Sammy Word app, which then
+    /// offers to send the score to a chat. The rest open on their own sites.
+    var playsInApp: Bool { self == .magnitudle || self == .hundredOfUs }
+
+    /// Opens this game in the Sammy Word app: sammyword://play/<letter>.
+    var appLink: URL { URL(string: "sammyword://play/\(rawValue)")! }
+
+    /// The game an app link points at, if any.
+    static func from(appLink url: URL) -> Game? {
+        guard url.scheme == "sammyword", url.host == "play" else { return nil }
+        return Game(rawValue: url.lastPathComponent).flatMap { $0.playsInApp ? $0 : nil }
+    }
+
     /// The most a round can score, when there's a ceiling.
     var maxScore: Int? {
         switch self {

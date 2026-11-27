@@ -155,3 +155,47 @@ enum ScoreParser {
         return nil
     }
 }
+
+/// Magnitudle and 100 of Us, whose creators said yes to being played in Sammy
+/// Word with their ads. Apple doesn't allow ads inside an iMessage extension
+/// (guideline 4.4), so the game opens in the Sammy Word app; when you finish
+/// there, a Messages sheet comes up with your score ready to send.
+struct InAppGameView: View {
+    let game: Game
+    let incoming: ScorePayload?
+    @ObservedObject var session: GameSession
+    let onHome: () -> Void
+
+    private var playedToday: String? { DailyStore.played(game) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            GameHeader(game: game, onHome: onHome)
+            ScrollView {
+                VStack(spacing: 18) {
+                    if let friend = incoming { FriendBanner(friend: friend) }
+                    VStack(spacing: 12) {
+                        PixelSprite(art: game.sprite, scale: 6)
+                        PixelText(game.title, scale: 3.5)
+                        Text(game.blurb)
+                            .font(Pixel.mono(13))
+                            .foregroundColor(Pixel.muted)
+                            .multilineTextAlignment(.center)
+                        Text("Made by its own creators and played here with their permission. It opens in the Sammy Word app, with their ads. When you finish, your score is ready to send to a chat.")
+                            .font(Pixel.mono(11))
+                            .foregroundColor(Pixel.muted.opacity(0.85))
+                            .multilineTextAlignment(.center)
+                        if let done = playedToday {
+                            PixelText("✓ TODAY: \(done)", scale: 2, color: Pixel.green)
+                        }
+                    }
+                    .padding(20)
+                    .frame(maxWidth: .infinity)
+                    .pixelBox(Pixel.panel, step: 4)
+                    PixelActionButton(title: "▶ PLAY IN SAMMY WORD") { session.openURL(game.appLink) }
+                }
+                .padding(18)
+            }
+        }
+    }
+}

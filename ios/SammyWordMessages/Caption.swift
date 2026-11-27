@@ -1,8 +1,8 @@
 import Foundation
 
-/// Daily Caption the Meme: one famous meme template a day, the same for
-/// everyone. The server picks it (`api/_memes.js`) and the app loads it from
-/// Imgflip. The pixel-art scenes below are only a stand-in while that image
+/// Daily Caption the Meme: one public-domain picture a day (old paintings, NASA
+/// photos), the same for everyone. The server picks it (`api/_memes.js`) and
+/// the app loads it from Wikimedia Commons. The pixel-art scenes below are only a stand-in while that image
 /// loads or when it can't be reached. Pure rules and data, no UI.
 enum Caption {
     static let maxLength = 80

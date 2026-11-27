@@ -43,12 +43,12 @@ const submit = (clientId, text, name, opts) => call('POST', { action: 'submit', 
 
 // Not configured: still says which meme is today's
 const nc = await (async () => { let j; await createHandler(null)({ method: 'GET', query: { day: '1' } }, { status() { return this }, json(x) { j = x } }); return j })()
-assert.equal(nc.configured, false); assert.equal(nc.meme.name, 'Disaster Girl')
+assert.equal(nc.configured, false); assert.equal(nc.meme.name, MEMES[0].name)
 
 // Before submitting you only see a count
 let r = await call('GET', { day: DAY, clientId: A })
 assert.equal(r.json.submitted, false); assert.equal(r.json.count, 0)
-assert.match(r.json.meme.url, /^https:\/\/i\.imgflip\.com\//); assert.equal(r.json.meme.name, memeFor(DAY).name)
+assert.match(r.json.meme.url, /^https:\/\/(upload|thumb)\.wikimedia\.org\//); assert.equal(r.json.meme.name, memeFor(DAY).name)
 assert.equal(memeFor(1).name, memeFor(1 + MEMES.length).name, 'rotation loops')
 
 r = await submit(A, '  When the   meeting\nruns long  ', '')

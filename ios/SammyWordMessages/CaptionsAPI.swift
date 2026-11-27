@@ -10,8 +10,8 @@ struct CaptionEntry: Decodable, Identifiable, Equatable {
     let mine: Bool
 }
 
-/// Today's meme template, chosen by the server (`api/_memes.js`) and loaded
-/// from Imgflip's image CDN.
+/// Today's picture, chosen by the server (`api/_memes.js`) and loaded from
+/// Wikimedia Commons (public-domain paintings and NASA photos).
 struct MemeInfo: Decodable, Equatable {
     let name: String
     let url: URL
