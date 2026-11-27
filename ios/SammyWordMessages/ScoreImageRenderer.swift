@@ -130,28 +130,41 @@ enum ScoreImageRenderer {
         }
     }
 
-    /// Caption the Meme: today's picture in a gold frame with the caption in
+    /// Caption the Meme: today's meme in a gold frame with the caption in
     /// meme lettering across its bottom, then the day and a nudge to reply.
     static func captionMeme(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
             let cg = ctx.cgContext
             dusk(cg, size)
             let day = payload.day ?? Daily.number()
-            let art = Caption.meme(day: day).art
-            let cell = (size * 0.66 / CGFloat(art.width)).rounded(.down)
-            let side = cell * CGFloat(art.width)
-            let origin = CGPoint(x: (size - side) / 2, y: size * 0.06)
-            pixelBox(cg, CGRect(x: origin.x - size * 0.025, y: origin.y - size * 0.025,
-                                width: side + size * 0.05, height: side + size * 0.05),
-                     fill: 0x241E4A, light: 0xFFC94A, dark: 0xB5762A, step: size * 0.01)
-            for (y, row) in art.rows.enumerated() {
-                for (x, ch) in row.enumerated() {
-                    guard let hex = art.palette[ch] else { continue }
-                    UIColor(hex: hex).setFill()
-                    cg.fill(CGRect(x: origin.x + CGFloat(x) * cell, y: origin.y + CGFloat(y) * cell,
-                                   width: cell + 0.5, height: cell + 0.5))
+            // The picture's box: the real template, fitted into the top 72%,
+            // or the pixel stand-in as a square when it isn't loaded.
+            let picture: CGRect
+            if let photo = MemeImages.image(day: day), photo.size.width > 0, photo.size.height > 0 {
+                let maxW = size * 0.88, maxH = size * 0.68
+                let k = min(maxW / photo.size.width, maxH / photo.size.height)
+                let w = photo.size.width * k, h = photo.size.height * k
+                picture = CGRect(x: (size - w) / 2, y: size * 0.05 + (maxH - h) / 2, width: w, height: h)
+                pixelBox(cg, picture.insetBy(dx: -size * 0.025, dy: -size * 0.025),
+                         fill: 0x241E4A, light: 0xFFC94A, dark: 0xB5762A, step: size * 0.01)
+                photo.draw(in: picture)
+            } else {
+                let art = Caption.meme(day: day).art
+                let cell = (size * 0.66 / CGFloat(art.width)).rounded(.down)
+                let side = cell * CGFloat(art.width)
+                picture = CGRect(x: (size - side) / 2, y: size * 0.06, width: side, height: side)
+                pixelBox(cg, picture.insetBy(dx: -size * 0.025, dy: -size * 0.025),
+                         fill: 0x241E4A, light: 0xFFC94A, dark: 0xB5762A, step: size * 0.01)
+                for (y, row) in art.rows.enumerated() {
+                    for (x, ch) in row.enumerated() {
+                        guard let hex = art.palette[ch] else { continue }
+                        UIColor(hex: hex).setFill()
+                        cg.fill(CGRect(x: picture.minX + CGFloat(x) * cell, y: picture.minY + CGFloat(y) * cell,
+                                       width: cell + 0.5, height: cell + 0.5))
+                    }
                 }
             }
+            let origin = picture.origin, side = picture.width
             if let caption = payload.captionText {
                 let style = NSMutableParagraphStyle()
                 style.alignment = .center
@@ -161,9 +174,9 @@ enum ScoreImageRenderer {
                     .strokeWidth: -6, .paragraphStyle: style,
                 ]
                 let str = NSAttributedString(string: caption.uppercased(), attributes: attrs)
-                let box = CGRect(x: origin.x + size * 0.02, y: 0, width: side - size * 0.04, height: side)
+                let box = CGRect(x: origin.x + size * 0.02, y: 0, width: side - size * 0.04, height: picture.height)
                 let h = str.boundingRect(with: box.size, options: [.usesLineFragmentOrigin], context: nil).height
-                str.draw(in: CGRect(x: box.minX, y: origin.y + side - h - size * 0.02, width: box.width, height: h + 2))
+                str.draw(in: CGRect(x: box.minX, y: picture.maxY - h - size * 0.02, width: box.width, height: h + 2))
             }
             let headline = "CAPTION THE MEME #\(day)"
             let foot = payload.captionText == nil

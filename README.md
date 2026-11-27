@@ -87,13 +87,17 @@ being featured. Seed prompts and answer shares are in `src/daily/days.js`
 
 ## Caption the Meme board (iOS game, server here)
 
-The iOS game Caption the Meme keeps today's captions and votes on a shared
-board: `api/captions.js`, a Vercel function using the same Upstash Redis as the
+The iOS game Caption the Meme gives everyone the same famous meme template
+each day (26 single-caption templates in `api/_memes.js`, rotating by day
+number, loaded by the app from Imgflip's image CDN; edit the list to change
+the rotation without an app update). It keeps today's captions and votes on a
+shared board: `api/captions.js`, a Vercel function using the same Upstash Redis as the
 leaderboard. Each device sends a random id (no accounts). You submit one
 caption a day (name optional, "Anonymous" when blank); only then do you see
 everyone else's, and you get one vote, never for your own.
 
-Protection: 80-character captions and 20-character names, a word filter
+Protection: 80-character captions and 20-character names, a word filter for
+slurs, sexual terms and self-harm harassment; swearing is allowed
 (`api/_blocklist.js`, extend with the `CAPTIONS_BLOCKLIST` env var), rate limits
 per device and per IP, writes only for today's meme, and a report button
 (3 reports hide a caption; the author still sees it). Reporting also hides that

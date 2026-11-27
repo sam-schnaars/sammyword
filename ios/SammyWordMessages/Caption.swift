@@ -1,9 +1,9 @@
 import Foundation
 
-/// Daily Caption the Meme: one pixel-art picture a day, the same for everyone
-/// (picked from the Sammy Word day number). Write a caption, send it to the
-/// chat, and friends tap the bubble to see yours and write their own.
-/// Pure rules and data, no UI. The pictures are our own pixel art.
+/// Daily Caption the Meme: one famous meme template a day, the same for
+/// everyone. The server picks it (`api/_memes.js`) and the app loads it from
+/// Imgflip. The pixel-art scenes below are only a stand-in while that image
+/// loads or when it can't be reached. Pure rules and data, no UI.
 enum Caption {
     static let maxLength = 80
 

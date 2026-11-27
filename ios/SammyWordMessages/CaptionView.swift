@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Daily Caption the Meme: today's picture (the same for everyone). Write a
+/// Daily Caption the Meme: today's meme template (the same for everyone). Write a
 /// caption and submit it (name optional, anonymous when blank). Once yours is
 /// in, everyone else's captions for today show up and you get one vote for the
 /// best, never your own. You can also send your caption to the chat as a
@@ -18,6 +18,7 @@ struct CaptionView: View {
     @State private var muted = DailyStore.mutedAuthors
     @State private var reporting: CaptionEntry?
     @State private var status: SendStatus = .idle
+    @State private var picture: UIImage?
     @FocusState private var typing: Bool
 
     private var day: Int { incoming?.day ?? Daily.number() }
@@ -40,14 +41,14 @@ struct CaptionView: View {
                         Text("\(incoming?.senderName ?? "A friend") captioned it:")
                             .font(Pixel.mono(13, .bold))
                             .foregroundColor(Pixel.muted)
-                        MemeFrame(art: meme.art, caption: friendCaption)
+                        MemeFrame(image: picture, art: meme.art, caption: friendCaption)
                     }
                     if submitted, let mine = myCaption {
-                        MemeFrame(art: meme.art, caption: mine.text)
+                        MemeFrame(image: picture, art: meme.art, caption: mine.text)
                         chatButton(mine.text)
                         captionList
                     } else {
-                        MemeFrame(art: meme.art, caption: draft.isEmpty ? nil : draft)
+                        MemeFrame(image: picture, art: meme.art, caption: draft.isEmpty ? nil : draft)
                         composer
                     }
                     if let problem {
@@ -195,6 +196,9 @@ struct CaptionView: View {
             if board == nil { problem = nil } else { problem = error.localizedDescription }
         }
         loading = false
+        if picture == nil, let m = board?.meme {
+            picture = await MemeImages.load(day: day, url: m.url)
+        }
     }
 
     private func submit() async {
@@ -231,28 +235,44 @@ struct CaptionView: View {
     }
 }
 
-/// Today's picture in a gold pixel frame, with the caption in classic meme
-/// lettering (heavy white capitals, black outline) along the bottom.
+/// Today's meme in a gold pixel frame, with the caption in classic meme
+/// lettering (heavy white capitals, black outline) along the bottom. Shows
+/// the real template once it has loaded; until then (or offline) a pixel-art
+/// stand-in.
 struct MemeFrame: View {
+    let image: UIImage?
     let art: PixelArt
     let caption: String?
 
     var body: some View {
-        GeometryReader { geo in
-            let scale = (geo.size.width / CGFloat(art.width)).rounded(.down)
-            ZStack(alignment: .bottom) {
-                PixelSprite(art: art, scale: scale)
-                if let caption {
-                    MemeText(caption.uppercased())
-                        .padding(.horizontal, 8)
-                        .padding(.bottom, 8)
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(image.size, contentMode: .fit)
+                    .overlay(alignment: .bottom) { captionText }
+            } else {
+                GeometryReader { geo in
+                    let scale = (geo.size.width / CGFloat(art.width)).rounded(.down)
+                    ZStack(alignment: .bottom) {
+                        PixelSprite(art: art, scale: scale)
+                        captionText
+                    }
+                    .frame(width: geo.size.width, height: geo.size.width)
                 }
+                .aspectRatio(1, contentMode: .fit)
             }
-            .frame(width: geo.size.width, height: geo.size.width)
         }
-        .aspectRatio(1, contentMode: .fit)
         .padding(8)
         .pixelBox(Pixel.featured, step: 4)
+    }
+
+    @ViewBuilder private var captionText: some View {
+        if let caption {
+            MemeText(caption.uppercased())
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
+        }
     }
 }
 

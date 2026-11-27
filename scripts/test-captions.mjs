@@ -1,6 +1,7 @@
 // Checks for api/captions.js against an in-memory Redis stand-in. Run: node scripts/test-captions.mjs
 import { createHandler, isBlocked, serverDay, tidy } from '../api/captions.js'
 import assert from 'node:assert/strict'
+import { MEMES, memeFor } from '../api/_memes.js'
 
 // Minimal in-memory stand-in for the Upstash client methods the API uses.
 class FakeRedis {
@@ -40,12 +41,15 @@ async function call(method, data, { ip, auth } = {}) {
 const A = 'aaaaaaaa-1111', B = 'bbbbbbbb-2222', C = 'cccccccc-3333'
 const submit = (clientId, text, name, opts) => call('POST', { action: 'submit', day: DAY, clientId, text, name }, opts)
 
-// Not configured
-assert.deepEqual((await (async () => { let j; await createHandler(null)({ method: 'GET', query: {} }, { status() { return this }, json(x) { j = x } }); return j })()), { configured: false })
+// Not configured: still says which meme is today's
+const nc = await (async () => { let j; await createHandler(null)({ method: 'GET', query: { day: '1' } }, { status() { return this }, json(x) { j = x } }); return j })()
+assert.equal(nc.configured, false); assert.equal(nc.meme.name, 'Disaster Girl')
 
 // Before submitting you only see a count
 let r = await call('GET', { day: DAY, clientId: A })
-assert.deepEqual(r.json, { configured: true, submitted: false, count: 0 })
+assert.equal(r.json.submitted, false); assert.equal(r.json.count, 0)
+assert.match(r.json.meme.url, /^https:\/\/i\.imgflip\.com\//); assert.equal(r.json.meme.name, memeFor(DAY).name)
+assert.equal(memeFor(1).name, memeFor(1 + MEMES.length).name, 'rotation loops')
 
 r = await submit(A, '  When the   meeting\nruns long  ', '')
 assert.equal(r.status, 200); assert.equal(r.json.submitted, true)
@@ -66,9 +70,11 @@ assert.equal(bCap.text.length, 80); assert.equal(bCap.name.length, 20)
 const bId = r.json.mine
 // Empty and blocked
 assert.equal((await submit(C, '   ')).status, 400)
-assert.equal((await submit(C, 'what the FUUUCK')).status, 422)
-assert.equal(isBlocked('what the FUUUCK'), true)
-assert.equal(isBlocked('sh1t happens'), true)
+assert.equal((await submit(C, 'k y s')).status, 422)
+assert.equal(isBlocked('what the FUUUCK'), false, 'swearing is allowed')
+assert.equal(isBlocked('sh1t happens'), false)
+assert.equal(isBlocked('n4z1 stuff'), true)
+assert.equal(isBlocked('p 0 r n'), true)
 assert.equal(isBlocked('a classic assignment'), false)
 assert.equal(isBlocked('Scunthorpe is lovely'), false)
 // Closed day

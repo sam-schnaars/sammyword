@@ -5,6 +5,7 @@
 //
 // Player actions (no accounts: each device sends a random `clientId`):
 //   GET  /api/captions?day=N&clientId=X
+//        Every answer includes `meme` (today's template: name, url, width, height).
 //        Before you've submitted: { submitted: false, count }.
 //        After: { submitted: true, mine, votedFor, captions: [...] }. You only
 //        see other people's captions once yours is in.
@@ -17,12 +18,14 @@
 //   POST { action: 'hide' | 'unhide' | 'delete', day, id }
 //
 // Protection: captions up to 80 characters and names up to 20, a word filter
-// (`_blocklist.js`, plus CAPTIONS_BLOCKLIST, comma-separated), per-device and
+// for slurs and sexual terms, not swearing (`_blocklist.js`, plus
+// CAPTIONS_BLOCKLIST, comma-separated), per-device and
 // per-IP rate limits, and only today's meme (±1 day for time zones) accepts
 // writes. A hidden caption still shows to its author, so they aren't tipped off.
 import { Redis } from '@upstash/redis'
 import { createHash } from 'node:crypto'
 import { BLOCKED_WORDS } from './_blocklist.js'
+import { memeFor } from './_memes.js'
 
 export const LIMITS = {
   text: 80,
@@ -72,7 +75,17 @@ export function isBlocked(text, extra = process.env.CAPTIONS_BLOCKLIST || '') {
     .replace(/[@4]/g, 'a').replace(/3/g, 'e').replace(/[1!|]/g, 'i').replace(/0/g, 'o')
     .replace(/[$5]/g, 's').replace(/7/g, 't')
   const joined = flat.replace(/[^a-z]/g, '').replace(/(.)\1+/g, '$1')
-  const tokens = flat.split(/[^a-z]+/).map((t) => t.replace(/(.)\1+/g, '$1'))
+  // Words, plus runs of single letters rejoined ("k y s" → "kys").
+  const tokens = flat
+    .split(/[^a-z]+/)
+    .reduce((out, t) => {
+      const last = out.length - 1
+      if (t.length === 1 && out.glue) out[last] += t
+      else out.push(t)
+      out.glue = t.length === 1
+      return out
+    }, [])
+    .map((t) => t.replace(/(.)\1+/g, '$1'))
   return words.some((w) => {
     const squeezed = w.replace(/(.)\1+/g, '$1')
     // Long words are caught inside other text; short ones only as whole words,
@@ -117,7 +130,6 @@ async function underLimit(redis, key, limit, seconds) {
 
 export function createHandler(redis, { adminToken = process.env.CAPTIONS_ADMIN_TOKEN, now = () => Date.now() } = {}) {
   return async function handler(req, res) {
-    if (!redis) return res.status(200).json({ configured: false })
     const body = typeof req.body === 'string' ? safeJSON(req.body) || {} : req.body || {}
     const q = req.query || {}
     const isPost = req.method === 'POST'
@@ -126,6 +138,8 @@ export function createHandler(redis, { adminToken = process.env.CAPTIONS_ADMIN_T
     const day = Number(isPost ? body.day : q.day)
     if (!Number.isInteger(day) || day < 1 || day > 100000) return res.status(400).json({ error: 'bad day' })
     const k = keys(day)
+    const meme = memeFor(day)
+    if (!redis) return res.status(200).json({ configured: false, meme })
 
     const auth = String(req.headers?.authorization || '')
     const isAdmin = Boolean(adminToken) && auth === `Bearer ${adminToken}`
@@ -134,7 +148,7 @@ export function createHandler(redis, { adminToken = process.env.CAPTIONS_ADMIN_T
       // ---- Moderation ----
       if (!isPost && q.admin) {
         if (!isAdmin) return res.status(401).json({ error: 'unauthorized' })
-        return res.status(200).json({ configured: true, day, captions: await listAll(redis, k) })
+        return res.status(200).json({ configured: true, day, meme, captions: await listAll(redis, k) })
       }
       const action = isPost ? String(body.action || '') : ''
       if (['hide', 'unhide', 'delete'].includes(action)) {
@@ -210,7 +224,7 @@ export function createHandler(redis, { adminToken = process.env.CAPTIONS_ADMIN_T
         }
       }
 
-      return res.status(200).json(await board(redis, k, clientId))
+      return res.status(200).json({ ...(await board(redis, k, clientId)), meme })
     } catch (err) {
       return res.status(500).json({ error: 'captions error', detail: String(err?.message || err) })
     }

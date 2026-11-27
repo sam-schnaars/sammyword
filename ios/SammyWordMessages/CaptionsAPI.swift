@@ -10,9 +10,19 @@ struct CaptionEntry: Decodable, Identifiable, Equatable {
     let mine: Bool
 }
 
+/// Today's meme template, chosen by the server (`api/_memes.js`) and loaded
+/// from Imgflip's image CDN.
+struct MemeInfo: Decodable, Equatable {
+    let name: String
+    let url: URL
+    let width: Double
+    let height: Double
+}
+
 /// What the board shows this device. Until you've submitted, only `count`.
 struct CaptionBoard: Decodable, Equatable {
     let configured: Bool
+    var meme: MemeInfo?
     var submitted: Bool?
     var count: Int?
     var mine: String?
