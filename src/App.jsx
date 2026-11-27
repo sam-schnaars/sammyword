@@ -27,6 +27,7 @@ import {
 import { fetchLeaderboard, submitScore } from './leaderboard.js'
 import FlagMatch from './FlagMatch.jsx'
 import DeepCut from './DeepCut.jsx'
+import Reels from './Reels.jsx'
 
 const fmtTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -277,6 +278,7 @@ export default function App() {
           onWordHunt={() => setAppMode('hunt')}
           onFlags={() => setAppMode('flags')}
           onDeep={() => setAppMode('deep')}
+          onReels={() => setAppMode('reels')}
         />
       </Overlay>
     )
@@ -294,6 +296,8 @@ export default function App() {
         }}
       />
     )
+
+  if (appMode === 'reels') return <Reels onHome={() => setAppMode('menu')} />
 
   if (appMode === 'deep')
     return (
@@ -592,7 +596,7 @@ function NameRow({ name, setName }) {
 }
 
 // The home screen: pick which game mode to play.
-function ModeSelect({ ready, onWordHunt, onFlags, onDeep }) {
+function ModeSelect({ ready, onWordHunt, onFlags, onDeep, onReels }) {
   return (
     <div className="card">
       <h1>Sammy Word</h1>
@@ -622,6 +626,15 @@ function ModeSelect({ ready, onWordHunt, onFlags, onDeep }) {
             <span className="mode-tile-title">Deep Cut</span>
             <span className="mode-tile-sub">
               Name something — the more obscure your answer, the more it scores
+            </span>
+          </span>
+        </button>
+        <button className="mode-tile" onClick={onReels}>
+          <span className="mode-tile-icon">📱</span>
+          <span className="mode-tile-text">
+            <span className="mode-tile-title">Scroll Recall</span>
+            <span className="mode-tile-sub">
+              Scroll today's 8 space reels, then see how much you remember
             </span>
           </span>
         </button>

@@ -1,18 +1,20 @@
 import Foundation
 
-/// Every game in Sammy Word. Three are ours (Word Hunt, Flag Match, Caption the Meme);
+/// Every game in Sammy Word. Four are ours (Word Hunt, Flag Match, Caption the
+/// Meme, Scroll Recall);
 /// four are daily games that live on their creators' websites.
 enum Game: String, Equatable, CaseIterable {
     case wordHunt = "w"      // trace words on today's letter grid, 30 s
     case flagMatch = "f"     // today's 5 flags, 60 s
-    case captionMeme = "c"   // caption today's pixel-art meme; friends answer with theirs
+    case captionMeme = "c"   // caption today's meme; friends answer with theirs
+    case reels = "r"         // Scroll Recall: watch 8 NASA reels, then 5 questions
     case krillion = "k"      // krillion.io: daily rare-answer dive
     case magnitudle = "m"    // magnitudle.com/daily: one estimate a day, scored /100
     case hundredOfUs = "h"   // logicers.com/100-of-us: "of 100 people, how many…?"
     case eraly = "e"         // eraly.io: guess the year of 7 moments, up to 700
 
     /// Our own games, in menu order.
-    static let own: [Game] = [.wordHunt, .flagMatch, .captionMeme]
+    static let own: [Game] = [.wordHunt, .flagMatch, .captionMeme, .reels]
     /// The daily games that live on other people's websites.
     static let web: [Game] = [.krillion, .magnitudle, .hundredOfUs, .eraly]
 
@@ -27,6 +29,7 @@ enum Game: String, Equatable, CaseIterable {
         case .wordHunt: return "Word Hunt"
         case .flagMatch: return "Flag Match"
         case .captionMeme: return "Caption the Meme"
+        case .reels: return "Scroll Recall"
         case .krillion: return "Krillion"
         case .magnitudle: return "Magnitudle"
         case .hundredOfUs: return "100 of Us"
@@ -39,6 +42,7 @@ enum Game: String, Equatable, CaseIterable {
         case .wordHunt: return "🔤"
         case .flagMatch: return "🚩"
         case .captionMeme: return "🖼️"
+        case .reels: return "📱"
         case .krillion: return "🦐"
         case .magnitudle: return "🧮"
         case .hundredOfUs: return "🌍"
@@ -52,6 +56,7 @@ enum Game: String, Equatable, CaseIterable {
         case .wordHunt: return "Today's letter grid: drag to spell as many words as you can in 30 seconds"
         case .flagMatch: return "Today's 5 flags: name each country before the minute runs out"
         case .captionMeme: return "Today's meme, the same for everyone: write the funniest caption"
+        case .reels: return "Scroll today's 8 space reels, then see how much you remember"
         case .krillion: return "Today's dive: the rarer your answers, the bigger the score"
         case .magnitudle: return "One mind-bending number a day. Guess it, scored out of 100"
         case .hundredOfUs: return "Of 100 people in the world, how many…? Get closest"
@@ -64,6 +69,7 @@ enum Game: String, Equatable, CaseIterable {
         case .wordHunt: return "Hunt today's words with me"
         case .flagMatch: return "Name today's flags with me"
         case .captionMeme: return "Caption today's meme with me"
+        case .reels: return "Scroll today's reels with me"
         case .krillion: return "Dive into today's Krillion with me"
         case .magnitudle: return "Try today's Magnitudle question"
         case .hundredOfUs: return "Guess today's 100 of Us with me"
@@ -86,6 +92,7 @@ enum Game: String, Equatable, CaseIterable {
     var maxScore: Int? {
         switch self {
         case .flagMatch: return Flags.questions
+        case .reels: return 5
         case .magnitudle: return 100
         case .eraly: return 700
         case .hundredOfUs: return 100
@@ -115,6 +122,7 @@ struct ScorePayload: Equatable {
         switch game {
         case .wordHunt, .krillion: return String(score)
         case .captionMeme: return "captioned"
+        case .reels: return "\(score)/5"
         case .flagMatch: return "\(score)/\(Flags.questions)"
         case .magnitudle: return "\(score)/100"
         case .hundredOfUs: return score == 0 ? "spot on" : "off by \(score)"
@@ -128,6 +136,7 @@ struct ScorePayload: Equatable {
         case .hundredOfUs: return score == 0 ? "nailed it" : "was \(scoreText)"
         case .captionMeme: return "captioned today's meme"
         case .flagMatch: return "named \(scoreText) flags"
+        case .reels: return "remembered \(scoreText)"
         default: return "scored \(scoreText)"
         }
     }

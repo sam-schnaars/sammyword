@@ -211,6 +211,21 @@ extension Game {
                 "oooooooooooo",
             ], palette: ["o": 0x0A0818, "y": 0xFFC94A, "b": 0x7AB8F5, "s": 0xF6EEDC,
                          "g": 0x4CD07D, "w": 0xF6EEDC, "k": 0x0A0818])
+        case .reels:
+            return PixelArt(rows: [
+                "...oooooo...",
+                "...owwwwo...",
+                "...obbbbo...",
+                "...obybbo...",
+                "...obbbbo...",
+                "...obbybo...",
+                "...obbbbo...",
+                "...oryybo...",
+                "...obbbbo...",
+                "...owwwwo...",
+                "...ow..wo...",
+                "...oooooo...",
+            ], palette: ["o": 0x0A0818, "w": 0x9C99CC, "b": 0x241E4A, "y": 0xFFC94A, "r": 0xFF6AD5])
         case .krillion:
             return PixelArt(rows: [
                 "ff..........",
@@ -278,6 +293,7 @@ extension Game {
         case .wordHunt: return 0x7AB8F5
         case .flagMatch: return 0xE5484D
         case .captionMeme: return 0xFF6AD5
+        case .reels: return 0x6EC3FF
         case .krillion: return 0xFF8A65
         case .magnitudle: return 0xFF5A5A
         case .hundredOfUs: return 0x3FC9B0

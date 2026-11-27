@@ -130,6 +130,7 @@ struct GameScreen: View {
         case .wordHunt: WordHuntView(incoming: incoming, session: session, onHome: onHome)
         case .flagMatch: FlagMatchView(incoming: incoming, session: session, onHome: onHome)
         case .captionMeme: CaptionView(incoming: incoming, session: session, onHome: onHome)
+        case .reels: ReelsView(incoming: incoming, session: session, onHome: onHome)
         default:
             #if HOSTED_EMBED
             WebGameView(game: game, incoming: incoming, session: session, onHome: onHome)

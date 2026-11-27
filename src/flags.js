@@ -10,68 +10,158 @@ export const FLAG_ROUND_SECONDS = 60
 export const FLAG_QUESTIONS = 5
 export const POINTS_PER_CORRECT = 100
 
-// How strongly to bias prompts toward less-populated countries. The pick weight
-// is 1 / pop^POP_BIAS, so higher = the big, common-knowledge flags (China, USA,
-// India…) show up less and obscure flags show up more. 0 = ignore population.
-export const POP_BIAS = 0.6
+// The quiz ramps up: flag 1 comes from tier 1 (flags everyone knows), flag 5
+// from tier 5 (obscure), and from flag 3 on, the wrong answers include
+// look-alike flags (Chad vs Romania, Monaco vs Indonesia). Tiers are by how
+// familiar the flag is, not population. The list and the algorithm must stay
+// identical to ios/SammyWordMessages/Flags.swift so a seed gives the same quiz.
+export const TIERS = 5
 
-// { name, code, pop } — code is the ISO 3166-1 alpha-2 code; pop is approximate
-// population in millions (used only to weight which flags get asked).
+// { name, code, tier }: code is the ISO 3166-1 alpha-2 code.
 export const COUNTRIES = [
-  { name: 'United States', code: 'US', pop: 340 },
-  { name: 'United Kingdom', code: 'GB', pop: 68 },
-  { name: 'France', code: 'FR', pop: 65 },
-  { name: 'Germany', code: 'DE', pop: 84 },
-  { name: 'Italy', code: 'IT', pop: 59 },
-  { name: 'Spain', code: 'ES', pop: 48 },
-  { name: 'Portugal', code: 'PT', pop: 10 },
-  { name: 'Netherlands', code: 'NL', pop: 18 },
-  { name: 'Belgium', code: 'BE', pop: 12 },
-  { name: 'Switzerland', code: 'CH', pop: 9 },
-  { name: 'Sweden', code: 'SE', pop: 10.5 },
-  { name: 'Norway', code: 'NO', pop: 5.5 },
-  { name: 'Finland', code: 'FI', pop: 5.6 },
-  { name: 'Denmark', code: 'DK', pop: 5.9 },
-  { name: 'Ireland', code: 'IE', pop: 5.2 },
-  { name: 'Iceland', code: 'IS', pop: 0.39 },
-  { name: 'Poland', code: 'PL', pop: 38 },
-  { name: 'Greece', code: 'GR', pop: 10.4 },
-  { name: 'Austria', code: 'AT', pop: 9 },
-  { name: 'Czechia', code: 'CZ', pop: 10.7 },
-  { name: 'Hungary', code: 'HU', pop: 9.6 },
-  { name: 'Russia', code: 'RU', pop: 144 },
-  { name: 'Ukraine', code: 'UA', pop: 38 },
-  { name: 'Turkey', code: 'TR', pop: 85 },
-  { name: 'Canada', code: 'CA', pop: 39 },
-  { name: 'Mexico', code: 'MX', pop: 128 },
-  { name: 'Brazil', code: 'BR', pop: 216 },
-  { name: 'Argentina', code: 'AR', pop: 46 },
-  { name: 'Chile', code: 'CL', pop: 19.6 },
-  { name: 'Colombia', code: 'CO', pop: 52 },
-  { name: 'Peru', code: 'PE', pop: 34 },
-  { name: 'Japan', code: 'JP', pop: 124 },
-  { name: 'China', code: 'CN', pop: 1410 },
-  { name: 'South Korea', code: 'KR', pop: 52 },
-  { name: 'India', code: 'IN', pop: 1430 },
-  { name: 'Thailand', code: 'TH', pop: 72 },
-  { name: 'Vietnam', code: 'VN', pop: 99 },
-  { name: 'Indonesia', code: 'ID', pop: 277 },
-  { name: 'Philippines', code: 'PH', pop: 117 },
-  { name: 'Malaysia', code: 'MY', pop: 34 },
-  { name: 'Singapore', code: 'SG', pop: 5.9 },
-  { name: 'Australia', code: 'AU', pop: 26 },
-  { name: 'New Zealand', code: 'NZ', pop: 5.2 },
-  { name: 'South Africa', code: 'ZA', pop: 60 },
-  { name: 'Egypt', code: 'EG', pop: 112 },
-  { name: 'Nigeria', code: 'NG', pop: 223 },
-  { name: 'Kenya', code: 'KE', pop: 55 },
-  { name: 'Morocco', code: 'MA', pop: 37 },
-  { name: 'Saudi Arabia', code: 'SA', pop: 37 },
-  { name: 'United Arab Emirates', code: 'AE', pop: 9.4 },
-  { name: 'Israel', code: 'IL', pop: 9.8 },
+  { name: 'United States', code: 'US', tier: 1 },
+  { name: 'United Kingdom', code: 'GB', tier: 1 },
+  { name: 'France', code: 'FR', tier: 1 },
+  { name: 'Germany', code: 'DE', tier: 1 },
+  { name: 'Italy', code: 'IT', tier: 1 },
+  { name: 'Spain', code: 'ES', tier: 1 },
+  { name: 'Japan', code: 'JP', tier: 1 },
+  { name: 'China', code: 'CN', tier: 1 },
+  { name: 'Canada', code: 'CA', tier: 1 },
+  { name: 'Brazil', code: 'BR', tier: 1 },
+  { name: 'Mexico', code: 'MX', tier: 1 },
+  { name: 'India', code: 'IN', tier: 1 },
+  { name: 'Australia', code: 'AU', tier: 1 },
+  { name: 'South Korea', code: 'KR', tier: 1 },
+  { name: 'Russia', code: 'RU', tier: 1 },
+  { name: 'Portugal', code: 'PT', tier: 2 },
+  { name: 'Netherlands', code: 'NL', tier: 2 },
+  { name: 'Switzerland', code: 'CH', tier: 2 },
+  { name: 'Sweden', code: 'SE', tier: 2 },
+  { name: 'Norway', code: 'NO', tier: 2 },
+  { name: 'Greece', code: 'GR', tier: 2 },
+  { name: 'Ireland', code: 'IE', tier: 2 },
+  { name: 'Turkey', code: 'TR', tier: 2 },
+  { name: 'Argentina', code: 'AR', tier: 2 },
+  { name: 'South Africa', code: 'ZA', tier: 2 },
+  { name: 'Egypt', code: 'EG', tier: 2 },
+  { name: 'Israel', code: 'IL', tier: 2 },
+  { name: 'Poland', code: 'PL', tier: 2 },
+  { name: 'Ukraine', code: 'UA', tier: 2 },
+  { name: 'New Zealand', code: 'NZ', tier: 2 },
+  { name: 'Denmark', code: 'DK', tier: 2 },
+  { name: 'Belgium', code: 'BE', tier: 2 },
+  { name: 'Jamaica', code: 'JM', tier: 2 },
+  { name: 'Finland', code: 'FI', tier: 3 },
+  { name: 'Austria', code: 'AT', tier: 3 },
+  { name: 'Iceland', code: 'IS', tier: 3 },
+  { name: 'Czechia', code: 'CZ', tier: 3 },
+  { name: 'Hungary', code: 'HU', tier: 3 },
+  { name: 'Chile', code: 'CL', tier: 3 },
+  { name: 'Colombia', code: 'CO', tier: 3 },
+  { name: 'Peru', code: 'PE', tier: 3 },
+  { name: 'Thailand', code: 'TH', tier: 3 },
+  { name: 'Vietnam', code: 'VN', tier: 3 },
+  { name: 'Indonesia', code: 'ID', tier: 3 },
+  { name: 'Philippines', code: 'PH', tier: 3 },
+  { name: 'Malaysia', code: 'MY', tier: 3 },
+  { name: 'Singapore', code: 'SG', tier: 3 },
+  { name: 'Nigeria', code: 'NG', tier: 3 },
+  { name: 'Kenya', code: 'KE', tier: 3 },
+  { name: 'Morocco', code: 'MA', tier: 3 },
+  { name: 'Saudi Arabia', code: 'SA', tier: 3 },
+  { name: 'United Arab Emirates', code: 'AE', tier: 3 },
+  { name: 'Cuba', code: 'CU', tier: 3 },
+  { name: 'Pakistan', code: 'PK', tier: 3 },
+  { name: 'Uruguay', code: 'UY', tier: 3 },
+  { name: 'Romania', code: 'RO', tier: 4 },
+  { name: 'Bulgaria', code: 'BG', tier: 4 },
+  { name: 'Croatia', code: 'HR', tier: 4 },
+  { name: 'Serbia', code: 'RS', tier: 4 },
+  { name: 'Slovakia', code: 'SK', tier: 4 },
+  { name: 'Slovenia', code: 'SI', tier: 4 },
+  { name: 'Luxembourg', code: 'LU', tier: 4 },
+  { name: 'Lithuania', code: 'LT', tier: 4 },
+  { name: 'Latvia', code: 'LV', tier: 4 },
+  { name: 'Estonia', code: 'EE', tier: 4 },
+  { name: 'Venezuela', code: 'VE', tier: 4 },
+  { name: 'Ecuador', code: 'EC', tier: 4 },
+  { name: 'Bolivia', code: 'BO', tier: 4 },
+  { name: 'Paraguay', code: 'PY', tier: 4 },
+  { name: 'Iraq', code: 'IQ', tier: 4 },
+  { name: 'Syria', code: 'SY', tier: 4 },
+  { name: 'Jordan', code: 'JO', tier: 4 },
+  { name: 'Kuwait', code: 'KW', tier: 4 },
+  { name: 'Qatar', code: 'QA', tier: 4 },
+  { name: 'Ghana', code: 'GH', tier: 4 },
+  { name: 'Senegal', code: 'SN', tier: 4 },
+  { name: 'Ethiopia', code: 'ET', tier: 4 },
+  { name: 'Tunisia', code: 'TN', tier: 4 },
+  { name: 'Algeria', code: 'DZ', tier: 4 },
+  { name: 'Bangladesh', code: 'BD', tier: 4 },
+  { name: 'Nepal', code: 'NP', tier: 4 },
+  { name: 'Sri Lanka', code: 'LK', tier: 4 },
+  { name: 'Iran', code: 'IR', tier: 4 },
+  { name: 'Malta', code: 'MT', tier: 4 },
+  { name: 'Chad', code: 'TD', tier: 5 },
+  { name: 'Andorra', code: 'AD', tier: 5 },
+  { name: 'Moldova', code: 'MD', tier: 5 },
+  { name: 'Monaco', code: 'MC', tier: 5 },
+  { name: 'Ivory Coast', code: 'CI', tier: 5 },
+  { name: 'Mali', code: 'ML', tier: 5 },
+  { name: 'Guinea', code: 'GN', tier: 5 },
+  { name: 'Cameroon', code: 'CM', tier: 5 },
+  { name: 'Yemen', code: 'YE', tier: 5 },
+  { name: 'Sudan', code: 'SD', tier: 5 },
+  { name: 'Bahrain', code: 'BH', tier: 5 },
+  { name: 'Honduras', code: 'HN', tier: 5 },
+  { name: 'Nicaragua', code: 'NI', tier: 5 },
+  { name: 'El Salvador', code: 'SV', tier: 5 },
+  { name: 'Guatemala', code: 'GT', tier: 5 },
+  { name: 'Liberia', code: 'LR', tier: 5 },
+  { name: 'Tajikistan', code: 'TJ', tier: 5 },
+  { name: 'Bhutan', code: 'BT', tier: 5 },
+  { name: 'Kiribati', code: 'KI', tier: 5 },
+  { name: 'Eswatini', code: 'SZ', tier: 5 },
+  { name: 'Comoros', code: 'KM', tier: 5 },
+  { name: 'Tuvalu', code: 'TV', tier: 5 },
+  { name: 'Nauru', code: 'NR', tier: 5 },
+  { name: 'Vanuatu', code: 'VU', tier: 5 },
+  { name: 'Brunei', code: 'BN', tier: 5 },
+  { name: 'Liechtenstein', code: 'LI', tier: 5 },
+  { name: 'San Marino', code: 'SM', tier: 5 },
+  { name: 'Niger', code: 'NE', tier: 5 },
+  { name: 'Palau', code: 'PW', tier: 5 },
+  { name: 'Maldives', code: 'MV', tier: 5 },
 ]
 
-// Turn a 2-letter ISO code into its flag emoji (regional indicator symbols).
+// Groups of flags that are easy to mix up.
+export const LOOKALIKES = [
+  ['TD', 'RO', 'AD', 'MD'],
+  ['ID', 'MC', 'PL'],
+  ['IE', 'CI', 'IT'],
+  ['NL', 'LU', 'PY'],
+  ['AU', 'NZ'],
+  ['NO', 'IS', 'DK', 'FI', 'SE'],
+  ['SN', 'ML', 'GN', 'CM'],
+  ['CO', 'EC', 'VE'],
+  ['SI', 'SK', 'RU', 'RS'],
+  ['EG', 'IQ', 'SY', 'YE'],
+  ['JO', 'SD', 'KW', 'AE'],
+  ['BE', 'DE'],
+  ['AT', 'LV'],
+  ['HN', 'NI', 'SV', 'GT', 'AR'],
+  ['GH', 'BO', 'LT', 'ET'],
+  ['QA', 'BH'],
+  ['HU', 'BG', 'IR', 'TJ'],
+  ['US', 'LR', 'MY'],
+  ['CU', 'UY', 'GR'],
+  ['JP', 'BD', 'PW'],
+  ['TR', 'TN'],
+  ['CN', 'VN'],
+  ['IN', 'NE'],
+]
+
 export function flagEmoji(code) {
   return code
     .toUpperCase()
@@ -100,50 +190,54 @@ function shuffled(arr, rng) {
   return a
 }
 
-// Weighted sampling of `count` items without replacement, driven by `rng`.
-// `items` and `weights` are parallel arrays; higher weight = more likely.
-function weightedSample(items, weights, count, rng) {
-  const pool = items.map((it, i) => ({ it, w: weights[i] }))
+// Integer in 0..<n, matching SeededRNG.int on iOS.
+function pick(n, rng) {
+  return Math.min(Math.floor(rng() * n), n - 1)
+}
+
+// Look-alike country indices for `code`, in group order, without repeats.
+function lookalikeIndices(code) {
   const out = []
-  while (out.length < count && pool.length) {
-    const total = pool.reduce((s, p) => s + p.w, 0)
-    let r = rng() * total
-    let k = 0
-    while (k < pool.length - 1 && r >= pool[k].w) {
-      r -= pool[k].w
-      k++
+  for (const g of LOOKALIKES) {
+    if (!g.includes(code)) continue
+    for (const c of g) {
+      const j = COUNTRIES.findIndex((x) => x.code === c)
+      if (c !== code && j >= 0 && !out.includes(j)) out.push(j)
     }
-    out.push(pool[k].it)
-    pool.splice(k, 1)
   }
   return out
 }
 
-// Build a deterministic quiz from `seed`: `count` flags, each with four country
-// choices (one correct + three distractors), all seeded so the same seed
-// reproduces the same quiz on any device. Prompt flags are drawn weighted toward
-// less-populated countries (see POP_BIAS); distractors are drawn uniformly so
-// wrong options stay plausible.
+// Build a deterministic quiz from `seed`: `count` flags, each with four
+// country choices, getting harder as it goes (see TIERS above). Same seed,
+// same quiz, on any device.
 export function buildQuiz(seed, count = FLAG_QUESTIONS) {
   const rng = mulberry32(seed)
-  const indices = COUNTRIES.map((_, i) => i)
-  const weights = COUNTRIES.map((c) => 1 / Math.pow(c.pop, POP_BIAS))
-  const chosen = weightedSample(indices, weights, Math.min(count, COUNTRIES.length), rng)
+  const used = []
+  const quiz = []
+  for (let q = 0; q < count; q++) {
+    const tier = 1 + Math.floor((q * TIERS) / count)
+    let pool = COUNTRIES.map((_, i) => i).filter((i) => COUNTRIES[i].tier === tier && !used.includes(i))
+    if (!pool.length) pool = COUNTRIES.map((_, i) => i).filter((i) => !used.includes(i))
+    const i = pool[pick(pool.length, rng)]
+    used.push(i)
 
-  return chosen.map((i) => {
-    const country = COUNTRIES[i]
-    const distractors = shuffled(
-      indices.filter((j) => j !== i),
-      rng,
+    const lookCount = Math.min(3, Math.max(0, q - 1))
+    const looks = shuffled(lookalikeIndices(COUNTRIES[i].code), rng).slice(0, lookCount)
+    let near = COUNTRIES.map((_, j) => j).filter(
+      (j) => j !== i && !looks.includes(j) && Math.abs(COUNTRIES[j].tier - tier) <= 1,
     )
-      .slice(0, 3)
-      .map((j) => COUNTRIES[j].name)
-    const options = shuffled([country.name, ...distractors], rng)
-    return {
+    if (near.length < 3 - looks.length) near = COUNTRIES.map((_, j) => j).filter((j) => j !== i && !looks.includes(j))
+    const fill = shuffled(near, rng).slice(0, 3 - looks.length)
+
+    const country = COUNTRIES[i]
+    const options = shuffled([i, ...looks, ...fill], rng).map((j) => COUNTRIES[j].name)
+    quiz.push({
       flag: flagEmoji(country.code),
       name: country.name,
       options,
       answer: options.indexOf(country.name),
-    }
-  })
+    })
+  }
+  return quiz
 }

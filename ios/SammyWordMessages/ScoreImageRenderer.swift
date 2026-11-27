@@ -21,6 +21,7 @@ enum ScoreImageRenderer {
         case .wordHunt: return wordHunt(payload, size: size)
         case .flagMatch: return flagMatch(payload, size: size)
         case .captionMeme: return captionMeme(payload, size: size)
+        case .reels: return reels(payload, size: size)
         case .krillion: return krillion(payload, size: size)
         case .magnitudle: return magnitudle(payload, size: size)
         case .hundredOfUs: return hundredOfUs(payload, size: size)
@@ -186,6 +187,40 @@ enum ScoreImageRenderer {
                  CGRect(x: 0, y: size * 0.78, width: size, height: size * 0.08), kern: 1.5)
             text(foot, .monospacedSystemFont(ofSize: size * 0.045, weight: .bold), cream,
                  CGRect(x: 0, y: size * 0.87, width: size, height: size * 0.08), kern: 0.5)
+        }
+    }
+
+    /// Scroll Recall: the score out of 5 and a square per question, green
+    /// when remembered.
+    static func reels(_ payload: ScorePayload, size: CGFloat) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
+            let cg = ctx.cgContext
+            dusk(cg, size)
+            let title = "SCROLL RECALL" + (payload.day.map { " · DAY \($0)" } ?? "")
+            text(title, .monospacedSystemFont(ofSize: size * 0.06, weight: .heavy), gold,
+                 CGRect(x: 0, y: size * 0.07, width: size, height: size * 0.09), kern: 2)
+            guard let score = payload.score else {
+                text("Today's\nreels", .monospacedSystemFont(ofSize: size * 0.12, weight: .black), cream,
+                     CGRect(x: 0, y: size * 0.3, width: size, height: size * 0.32))
+                return
+            }
+            text("\(score)", .monospacedDigitSystemFont(ofSize: size * 0.26, weight: .black), cream,
+                 CGRect(x: size * 0.02, y: size * 0.17, width: size * 0.56, height: size * 0.32), align: .right)
+            text("/5", .monospacedSystemFont(ofSize: size * 0.08, weight: .bold), gold,
+                 CGRect(x: size * 0.6, y: size * 0.36, width: size * 0.36, height: size * 0.1), align: .left)
+            let marks = payload.marks.count == 5 ? payload.marks : Array(repeating: "", count: 5)
+            let gap = size * 0.03, w = (size * 0.7 - gap * 4) / 5
+            for (i, m) in marks.enumerated() {
+                let r = CGRect(x: size * 0.15 + CGFloat(i) * (w + gap), y: size * 0.6, width: w, height: w)
+                if m == "1" {
+                    pixelBox(cg, r, fill: 0x2E9E5B, light: 0x7BE89A, dark: 0x16603A, step: size * 0.006)
+                } else {
+                    pixelBox(cg, r, fill: 0xB83A44, light: 0xF07A84, dark: 0x6E1A22, step: size * 0.006)
+                }
+            }
+            text("\(payload.senderName.map { "\($0) remembered" } ?? "I remembered") \(score) · can you beat it?",
+                 .systemFont(ofSize: size * 0.05, weight: .semibold), lilac,
+                 CGRect(x: size * 0.04, y: size * 0.84, width: size * 0.92, height: size * 0.08))
         }
     }
 

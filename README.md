@@ -40,6 +40,17 @@ byte-identical (`cp src/deepcut.json ios/SammyWordMessages/Resources/`).
 Challenges carry the round seed, score, and the sender's answers, so the friend
 plays the same prompts and the results show both answers side by side.
 
+## Scroll Recall
+
+A daily set of 8 short reels: real public-domain NASA footage (loaded from
+NASA's video library) with a silly caption and a fact on top. Each reel plays
+about 8 seconds and moves on by itself unless you swipe up first; there's no
+going back. Then 5 questions mixing what you saw, the captions and the facts.
+Three sets rotate by day (`src/reels.json`, copied byte-for-byte to
+`ios/SammyWordMessages/Resources/reels.json`); each reel is a clip URL, a start
+time, a caption and a fact, and each question lists its right answer first
+(the app shuffles the choices).
+
 ## Map shapes & Map of the Day
 
 The home screen has a **GAME MODE** picker with several board shapes (classic

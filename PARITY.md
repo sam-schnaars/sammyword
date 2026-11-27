@@ -25,10 +25,11 @@ on each side. This file is the contract that keeps them in sync.
 | Length-scaled haptics | `App.jsx` (`hapticForWord`) | `Haptics.swift` | ✅ both |
 | Challenge a friend (Word Hunt, both players' words, head-to-head results) | `share.js`, `App.jsx` (`Compare`/`ScoreDuel`) | `FriendBanner` + score bubble (`g=w`, `ks` score, `kd` day, `kr` best 3 words) | ⚠️ iOS shows score to beat, not both word lists |
 | Map of the Day + per-day best + global leaderboard | `board.js`, `share.js`, `api/leaderboard.js`, `src/leaderboard.js`, `App.jsx` | — | 🌐 web only |
-| Flag Match (timed flag→country quiz, 5 flags, 60 s) + challenge | `flags.js`, `FlagMatch.jsx`, `share.js` (`#f=`) | `FlagMatchView.swift`, `FlagMatchGame.swift`, `Flags.swift` (daily seed `hashStr("flags-"+UTC day)`; bubble `g=f`, `ks` = flags right) | ✅ both |
+| Flag Match (timed flag→country quiz, 5 flags, 60 s, getting harder: flag N from familiarity tier N of 5, look-alike wrong answers from flag 3) + challenge | `flags.js`, `FlagMatch.jsx`, `share.js` (`#f=`) | `FlagMatchView.swift`, `FlagMatchGame.swift`, `Flags.swift` (daily seed `hashStr("flags-"+UTC day)`; bubble `g=f`, `ks` = flags right) | ✅ both |
 | Deep Cut (rare-answer trivia) + challenge | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json`, `share.js` (`#d=`) | — | 🌐 web only |
 | Daily Sammy prototype (one prompt a day, niche answers score more; community games below, Magnitudle card with ad slot) | own page `/mobile/daily/`: `daily/index.html`, `src/daily/` | — | 🌐 web only (prototype) |
 | Caption the Meme (daily: one famous meme template a day from `api/_memes.js`, loaded from Imgflip, same for everyone; write a caption, friends reply with theirs). Replaced Doodle on 2026-11-26 | — | `Caption.swift` (pixel-art stand-ins while loading), `CaptionView.swift`, `CaptionsAPI.swift`, `MemeImages.swift` (template = server's `memeFor(day)`; bubble `g=c`, `kd` day, `ct` caption; no score). Shared board: submit (name optional), then see everyone's captions and vote once, not for your own; served by `api/captions.js` | ⚠️ iOS only |
+| Scroll Recall (daily: 8 NASA public-domain reels ~8 s each, auto-advance or swipe up, no going back, then 5 questions; score to chat) | `Reels.jsx`, `reels.js`, `src/reels.json` | `ReelsView.swift`, `Reels.swift`, `Resources/reels.json` (bubble `g=r`, `ks` = right of 5, `kr` = 1/0 per question) | ✅ both |
 | Pixel-art look (8-bit dusk sky, square bevelled boxes, pixel display font) | `pixel.css` (Silkscreen + Space Mono fonts) | `PixelArt.swift` (5×7 bitmap font, sprites) | ✅ both |
 | Mode picker | `App.jsx` (`ModeSelect`: Word Hunt / Flag Match / Deep Cut) | `RootView.swift` (`GameMenu`: Our games + More daily games; compact bar scrolls all games) | ⚠️ different game lists |
 | Game of the day home (one featured game a day in turn, day number, played-today ticks, streak) | — | `RootView.swift` (`GameMenu`), `DailyStore.swift` (`Daily.rotation`) | ⚠️ iOS only |
@@ -91,3 +92,4 @@ on each side. This file is the contract that keeps them in sync.
 
 Caption the Meme (iOS): no score; the caption is the result (shown as "captioned" in the played-today tick).
 Round lengths: Word Hunt 30 s (was 80 s), Flag Match 5 flags in 60 s (was 12), both platforms, 2026-11-26.
+Flag Match's country list (114 countries with tiers 1–5), look-alike groups and `buildQuiz` steps must match byte-for-byte between `src/flags.js` and `Flags.swift`; `src/reels.json` and `Resources/reels.json` must be identical.
