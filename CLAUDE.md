@@ -38,6 +38,13 @@ the user explicitly scoped it to one platform.
 
   Always run this build to confirm iOS changes compile before claiming done.
 
+- **Seeing the iOS games:** the simulator's Messages app can't open iMessage
+  apps, so the `SammyWordPreview` target runs the extension's SwiftUI screens
+  as a plain app (everything except `MessagesViewController.swift`). Build the
+  `SammyWordPreview` scheme, launch it in the simulator, and take screenshots
+  with `xcrun simctl io booted screenshot`. It's never archived:
+  `Scripts/archive.sh` builds only the SammyWord scheme.
+
 ## Conventions
 
 - Keep game logic free of UIKit/Messages on iOS (it stays portable); only

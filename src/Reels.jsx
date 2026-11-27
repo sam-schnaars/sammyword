@@ -120,6 +120,7 @@ function ReelPlayer({ reel, upNext, index, count, muted, onMute, onNext, onHome 
   const videoRef = useRef(null)
   const touchY = useRef(null)
   const done = useRef(false)
+  const [started, setStarted] = useState(false)
 
   const advance = () => {
     if (done.current) return
@@ -127,17 +128,25 @@ function ReelPlayer({ reel, upNext, index, count, muted, onMute, onNext, onHome 
     onNext()
   }
 
-  // Move on after REEL_SECONDS whether or not the clip loaded.
+  // Count down REEL_SECONDS once the clip is actually playing, so a slow load
+  // doesn't eat into the reel. If it hasn't started within 6 s, start anyway.
   useEffect(() => {
+    const t = setTimeout(() => setStarted(true), 6000)
+    return () => clearTimeout(t)
+  }, [])
+  useEffect(() => {
+    if (!started) return
     const t = setTimeout(advance, REEL_SECONDS * 1000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started])
+
+  useEffect(() => {
     const onKey = (e) => {
       if (['ArrowDown', 'ArrowRight', ' ', 'PageDown'].includes(e.key)) advance()
     }
     window.addEventListener('keydown', onKey)
-    return () => {
-      clearTimeout(t)
-      window.removeEventListener('keydown', onKey)
-    }
+    return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -163,6 +172,7 @@ function ReelPlayer({ reel, upNext, index, count, muted, onMute, onNext, onHome 
         muted={muted}
         playsInline
         loop
+        onPlaying={() => setStarted(true)}
         onLoadedMetadata={(e) => {
           if (e.currentTarget.currentTime < reel.start - 0.5) e.currentTarget.currentTime = reel.start
         }}
@@ -176,7 +186,11 @@ function ReelPlayer({ reel, upNext, index, count, muted, onMute, onNext, onHome 
       <div className="reel-top">
         <div className="reel-bars">
           {Array.from({ length: count }, (_, i) => (
-            <i key={i} className={i < index ? 'seen' : i === index ? 'now' : ''} style={{ '--secs': `${REEL_SECONDS}s` }} />
+            <i
+              key={i}
+              className={i < index ? 'seen' : i === index && started ? 'now' : ''}
+              style={{ '--secs': `${REEL_SECONDS}s` }}
+            />
           ))}
         </div>
         <div className="reel-tools">

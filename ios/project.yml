@@ -55,3 +55,22 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord.SammyWordMessages
         ASSETCATALOG_COMPILER_APPICON_NAME: "iMessage App Icon"
+
+  # ---- Simulator-only preview of the games (demos/screenshots; never shipped) ----
+  SammyWordPreview:
+    type: application
+    platform: iOS
+    sources:
+      - Preview
+      - path: SammyWordMessages
+        excludes:
+          - MessagesViewController.swift
+          - Info.plist
+          - Assets.xcassets
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: SW Preview
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord.Preview

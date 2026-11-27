@@ -19,6 +19,8 @@ struct ReelsView: View {
     @State private var picked: Int?
     @State private var answers: [Bool] = []
     @State private var status: SendStatus = .idle
+    /// A replay after today's set was already done: not recorded or sent.
+    @State private var practice = false
 
     private let day = Daily.number()
     private var reelSet: Reels.ReelSet? { Reels.set(day: day) }
@@ -64,7 +66,7 @@ struct ReelsView: View {
                 .frame(maxWidth: .infinity)
                 .pixelBox(Pixel.panel, step: 4)
 
-                PixelActionButton(title: playedToday == nil ? "▶ START SCROLLING" : "▶ WATCH AGAIN") { start() }
+                PixelActionButton(title: playedToday == nil ? "▶ START SCROLLING" : "▶ WATCH AGAIN (PRACTICE)", scale: playedToday == nil ? 2.5 : 2) { start() }
                     .disabled(reels.isEmpty)
             }
             .padding(18)
@@ -120,8 +122,11 @@ struct ReelsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(hex: 0x0A0818).opacity(0.85))
                     .overlay(Rectangle().stroke(Pixel.gold, lineWidth: 3))
-                    PixelText("SWIPE UP ↑", scale: 1.8, color: Color.white.opacity(0.8), shadow: nil)
-                        .padding(.vertical, 14)
+                    HStack(spacing: 6) {
+                        PixelText("SWIPE UP", scale: 1.8, color: Color.white.opacity(0.8), shadow: nil)
+                        Text("↑").font(.system(size: 16, weight: .black)).foregroundColor(Color.white.opacity(0.8))
+                    }
+                    .padding(.vertical, 14)
                 }
                 .padding(.horizontal, 12)
             }
@@ -182,15 +187,21 @@ struct ReelsView: View {
     private var over: some View {
         ScrollView {
             VStack(spacing: 16) {
-                ScoreCard(title: "SCROLL RECALL", value: "\(correct)/\(quiz.count)",
+                ScoreCard(title: practice ? "PRACTICE" : "SCROLL RECALL", value: "\(correct)/\(quiz.count)",
                           detail: answers.map { $0 ? "🟩" : "🟥" }.joined())
-                if let friend = incoming, let theirs = friend.score {
+                if let friend = incoming, let theirs = friend.score, !practice {
                     PixelText(correct > theirs ? "YOU BEAT \(friend.senderName ?? "THEM")!"
                               : correct == theirs ? "A TIE!" : "\(friend.senderName ?? "THEY") WIN THIS ONE",
                               scale: 2, color: correct >= theirs ? Pixel.green : Pixel.gold)
                 }
-                NameField()
-                SendButton(title: "SEND TO CHAT", payload: payload, session: session, status: $status)
+                if practice {
+                    Text("Practice round: today's score stays \(playedToday ?? "as it was").")
+                        .font(Pixel.mono(12))
+                        .foregroundColor(Pixel.muted)
+                } else {
+                    NameField()
+                    SendButton(title: "SEND TO CHAT", payload: payload, session: session, status: $status)
+                }
             }
             .padding(18)
         }
@@ -203,6 +214,7 @@ struct ReelsView: View {
     // MARK: Flow
 
     private func start() {
+        practice = playedToday != nil
         answers = []
         q = 0
         picked = nil
@@ -224,10 +236,19 @@ struct ReelsView: View {
         players[i] = player
     }
 
+    /// Play reel `i` and move on `Reels.seconds` after it actually starts
+    /// playing, so a slow load doesn't eat into the reel. If it hasn't started
+    /// within 6 seconds, the countdown starts anyway.
     private func play(_ i: Int) {
-        players[i]?.play()
+        let player = players[i]
+        player?.play()
         advanceTask?.cancel()
         advanceTask = Task { @MainActor in
+            var waited = 0.0
+            while waited < 6, player?.timeControlStatus != .playing, !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                waited += 0.2
+            }
             try? await Task.sleep(nanoseconds: UInt64(Reels.seconds * 1_000_000_000))
             if !Task.isCancelled, phase == .watching, index == i { advance() }
         }
@@ -258,8 +279,10 @@ struct ReelsView: View {
             picked = nil
             if q + 1 >= quiz.count {
                 phase = .over
-                DailyStore.record(payload)
-                Delivery.send(payload, session: session, status: $status)
+                if !practice {
+                    DailyStore.record(payload)
+                    Delivery.send(payload, session: session, status: $status)
+                }
             } else {
                 q += 1
             }
