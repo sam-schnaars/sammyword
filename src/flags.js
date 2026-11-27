@@ -7,7 +7,7 @@
 // Windows/Chrome by default, but do on iOS, macOS, and Android.
 
 export const FLAG_ROUND_SECONDS = 60
-export const FLAG_QUESTIONS = 12
+export const FLAG_QUESTIONS = 5
 export const POINTS_PER_CORRECT = 100
 
 // How strongly to bias prompts toward less-populated countries. The pick weight

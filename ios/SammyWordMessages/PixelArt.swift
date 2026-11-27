@@ -195,22 +195,22 @@ extension Game {
                 "pp..........",
                 "pppp........",
             ], palette: ["p": 0xC9CFE8, "r": 0xE5484D, "w": 0xF6EEDC, "b": 0x3B82F6])
-        case .doodle:
+        case .captionMeme:
             return PixelArt(rows: [
-                "..........yy",
-                ".........yyy",
-                "........yyy.",
-                "..oooo.yyy..",
-                ".orrbbyyy...",
-                "orrrbbyy....",
-                "oggrrpwo....",
-                "ogggppwwo...",
-                "oyyggppwo...",
-                ".oyyyppo....",
-                "..oooooo....",
-                "............",
-            ], palette: ["o": 0x0A0818, "r": 0xE5484D, "b": 0x3B82F6, "g": 0x4CD07D,
-                         "p": 0xA66BFF, "w": 0xF6EEDC, "y": 0xFFC94A])
+                "oooooooooooo",
+                "oyyyyyyyyyyo",
+                "oybbbbbbbbyo",
+                "oybbbbbbssyo",
+                "oybbbbbbssyo",
+                "oybbbgbbbbyo",
+                "oybbgggbbbyo",
+                "oybgggggbbyo",
+                "oyyyyyyyyyyo",
+                "owwwwwwwwwwo",
+                "owkkwkwkkkwo",
+                "oooooooooooo",
+            ], palette: ["o": 0x0A0818, "y": 0xFFC94A, "b": 0x7AB8F5, "s": 0xF6EEDC,
+                         "g": 0x4CD07D, "w": 0xF6EEDC, "k": 0x0A0818])
         case .krillion:
             return PixelArt(rows: [
                 "ff..........",
@@ -277,7 +277,7 @@ extension Game {
         switch self {
         case .wordHunt: return 0x7AB8F5
         case .flagMatch: return 0xE5484D
-        case .doodle: return 0xA66BFF
+        case .captionMeme: return 0xFF6AD5
         case .krillion: return 0xFF8A65
         case .magnitudle: return 0xFF5A5A
         case .hundredOfUs: return 0x3FC9B0

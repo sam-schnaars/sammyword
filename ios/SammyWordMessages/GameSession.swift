@@ -18,7 +18,7 @@ final class GameSession: ObservableObject {
     /// opened from one. `nil` means "start fresh."
     @Published var incoming: ScorePayload?
 
-    /// The tapped bubble was sent from this device (e.g. your own doodle).
+    /// The tapped bubble was sent from this device (e.g. your own caption).
     @Published var incomingIsMine = false
 
     /// Which game to jump into on expand; `ExpandedView` consumes it on appear.

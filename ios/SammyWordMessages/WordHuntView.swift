@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Word Hunt: today's 4×4 letter grid, 80 seconds, drag across neighbors to
+/// Word Hunt: today's 4×4 letter grid, 30 seconds, drag across neighbors to
 /// spell words. Everyone gets the same board each day, so a friend's bubble is
 /// a score to beat on the very same letters. After the daily round you can
 /// keep practicing on random boards.
@@ -53,7 +53,7 @@ struct WordHuntView: View {
                 VStack(spacing: 14) {
                     PixelSprite(art: Game.wordHunt.sprite, scale: 6)
                     PixelText(practice ? "PRACTICE BOARD" : "DAY \(Daily.number())", scale: 3)
-                    Text("Drag across touching letters to spell words of 3 or more. Longer words score far more. You have 80 seconds.")
+                    Text("Drag across touching letters to spell words of 3 or more. Longer words score far more. You have 30 seconds.")
                         .font(Pixel.mono(13))
                         .foregroundColor(Pixel.muted)
                         .multilineTextAlignment(.center)

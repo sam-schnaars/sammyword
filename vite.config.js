@@ -10,7 +10,8 @@ export default defineConfig({
   // Served under /mobile/ (samarei.com/mobile proxies to this app; vercel.json
   // maps /mobile/* back to the root on sammyword's own domain).
   base: '/mobile/',
-  // Extra standalone pages: the pixel-art redesign concepts (/mobile/concepts/).
+  // Extra standalone pages: the pixel-art redesign concepts (/mobile/concepts/)
+  // and the Daily Sammy prototype (/mobile/daily/).
   build: {
     rollupOptions: {
       input: {
@@ -19,6 +20,7 @@ export default defineConfig({
         mine: page('concepts/mine.html'),
         liftoff: page('concepts/liftoff.html'),
         duel: page('concepts/duel.html'),
+        daily: page('daily/index.html'),
       },
     },
   },

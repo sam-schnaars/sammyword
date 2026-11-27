@@ -149,12 +149,13 @@ struct SendButton: View {
 
 /// The player's name, shown on the bubbles they send.
 struct NameField: View {
+    var prompt = "Your name"
     @State private var name = DailyStore.playerName
 
     var body: some View {
         HStack(spacing: 10) {
             PixelText("NAME", scale: 1.5, color: Pixel.muted, shadow: nil)
-            TextField("", text: $name, prompt: Text("Your name").foregroundColor(Pixel.muted.opacity(0.6)))
+            TextField("", text: $name, prompt: Text(prompt).foregroundColor(Pixel.muted.opacity(0.6)))
                 .font(Pixel.mono(15, .bold))
                 .foregroundColor(Pixel.cream)
                 .textInputAutocapitalization(.words)

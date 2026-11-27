@@ -20,7 +20,7 @@ enum ScoreImageRenderer {
         switch payload.game {
         case .wordHunt: return wordHunt(payload, size: size)
         case .flagMatch: return flagMatch(payload, size: size)
-        case .doodle: return doodle(payload, size: size)
+        case .captionMeme: return captionMeme(payload, size: size)
         case .krillion: return krillion(payload, size: size)
         case .magnitudle: return magnitudle(payload, size: size)
         case .hundredOfUs: return hundredOfUs(payload, size: size)
@@ -97,7 +97,7 @@ enum ScoreImageRenderer {
         }
     }
 
-    /// Flag Match: flags right out of 12, as a row of lit-up flag squares.
+    /// Flag Match: flags right out of 5, as a row of lit-up flag squares.
     static func flagMatch(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
             let cg = ctx.cgContext
@@ -130,38 +130,49 @@ enum ScoreImageRenderer {
         }
     }
 
-    /// Doodle: the drawing itself in a pixel frame, plus what to do next.
-    static func doodle(_ payload: ScorePayload, size: CGFloat) -> UIImage {
+    /// Caption the Meme: today's picture in a gold frame with the caption in
+    /// meme lettering across its bottom, then the day and a nudge to reply.
+    static func captionMeme(_ payload: ScorePayload, size: CGFloat) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
             let cg = ctx.cgContext
             dusk(cg, size)
-            let cells = Doodle.decode(payload.drawing ?? "")
-            let n = Doodle.size
-            let frame = size * 0.6, cell = (frame / CGFloat(n)).rounded(.down)
-            let side = cell * CGFloat(n)
-            let origin = CGPoint(x: (size - side) / 2, y: size * 0.07)
+            let day = payload.day ?? Daily.number()
+            let art = Caption.meme(day: day).art
+            let cell = (size * 0.66 / CGFloat(art.width)).rounded(.down)
+            let side = cell * CGFloat(art.width)
+            let origin = CGPoint(x: (size - side) / 2, y: size * 0.06)
             pixelBox(cg, CGRect(x: origin.x - size * 0.025, y: origin.y - size * 0.025,
                                 width: side + size * 0.05, height: side + size * 0.05),
                      fill: 0x241E4A, light: 0xFFC94A, dark: 0xB5762A, step: size * 0.01)
-            for i in 0..<(n * n) {
-                UIColor(hex: Doodle.palette[cells[i]]).setFill()
-                cg.fill(CGRect(x: origin.x + CGFloat(i % n) * cell, y: origin.y + CGFloat(i / n) * cell,
-                               width: cell + 0.5, height: cell + 0.5))
+            for (y, row) in art.rows.enumerated() {
+                for (x, ch) in row.enumerated() {
+                    guard let hex = art.palette[ch] else { continue }
+                    UIColor(hex: hex).setFill()
+                    cg.fill(CGRect(x: origin.x + CGFloat(x) * cell, y: origin.y + CGFloat(y) * cell,
+                                   width: cell + 0.5, height: cell + 0.5))
+                }
             }
-            let word = Doodle.word(forSecret: payload.secret)
-            let headline: String, foot: String
-            if payload.score == nil {
-                headline = "GUESS MY DOODLE"
-                foot = word.map { String(repeating: "_ ", count: $0.count).trimmingCharacters(in: .whitespaces) } ?? "tap to guess"
-            } else {
-                let w = (payload.marks.first ?? "it").uppercased()
-                headline = payload.score == 0 ? "IT WAS \(w)" : "GOT IT: \(w)"
-                foot = "your turn to draw"
+            if let caption = payload.captionText {
+                let style = NSMutableParagraphStyle()
+                style.alignment = .center
+                let font = UIFont.systemFont(ofSize: size * (caption.count > 40 ? 0.05 : 0.065), weight: .black)
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: font, .foregroundColor: UIColor.white, .strokeColor: UIColor.black,
+                    .strokeWidth: -6, .paragraphStyle: style,
+                ]
+                let str = NSAttributedString(string: caption.uppercased(), attributes: attrs)
+                let box = CGRect(x: origin.x + size * 0.02, y: 0, width: side - size * 0.04, height: side)
+                let h = str.boundingRect(with: box.size, options: [.usesLineFragmentOrigin], context: nil).height
+                str.draw(in: CGRect(x: box.minX, y: origin.y + side - h - size * 0.02, width: box.width, height: h + 2))
             }
-            text(headline, .monospacedSystemFont(ofSize: size * 0.065, weight: .heavy), gold,
-                 CGRect(x: 0, y: size * 0.74, width: size, height: size * 0.09), kern: 1.5)
-            text(foot, .monospacedSystemFont(ofSize: size * 0.05, weight: .bold), cream,
-                 CGRect(x: 0, y: size * 0.85, width: size, height: size * 0.08), kern: 1)
+            let headline = "CAPTION THE MEME #\(day)"
+            let foot = payload.captionText == nil
+                ? "write a caption"
+                : "\(payload.senderName.map { "\($0)'s" } ?? "my") caption · write yours"
+            text(headline, .monospacedSystemFont(ofSize: size * 0.055, weight: .heavy), gold,
+                 CGRect(x: 0, y: size * 0.78, width: size, height: size * 0.08), kern: 1.5)
+            text(foot, .monospacedSystemFont(ofSize: size * 0.045, weight: .bold), cream,
+                 CGRect(x: 0, y: size * 0.87, width: size, height: size * 0.08), kern: 0.5)
         }
     }
 

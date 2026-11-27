@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Flag Match: today's 12 flags, one minute, four countries to pick from each
+/// Flag Match: today's 5 flags, one minute, four countries to pick from each
 /// time. The quiz comes from the day, so everyone gets the same flags and a
 /// friend's bubble is a score to beat on the same quiz.
 struct FlagMatchView: View {

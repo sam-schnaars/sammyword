@@ -11,7 +11,7 @@ struct FoundWord: Identifiable, Equatable {
 /// here and depend only on Foundation/Combine (no UIKit/Messages), so the model
 /// stays portable when the concept changes.
 final class WordHuntGame: ObservableObject {
-    static let roundSeconds = 80
+    static let roundSeconds = 30
 
     @Published private(set) var board: GameBoard
     @Published private(set) var path: [Int] = []          // selected cell indices

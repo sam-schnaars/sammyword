@@ -3,7 +3,7 @@
 // letters to spell words. Boards can be arbitrary shapes on a grid — a "mask"
 // marks which cells exist; the rest are holes.
 
-export const ROUND_SECONDS = 80
+export const ROUND_SECONDS = 30
 
 // Game Pigeon "Word Hunt" length -> points table.
 const SCORE_BY_LENGTH = { 3: 100, 4: 400, 5: 800, 6: 1400, 7: 1800 }

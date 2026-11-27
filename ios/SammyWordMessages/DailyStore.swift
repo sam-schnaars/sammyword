@@ -7,6 +7,21 @@ enum DailyStore {
     private static let nameKey = "sw-name"
     private static let playedKey = "sw-played"   // ["2026-11-18|k": "465"]
 
+    /// A random id for this device, sent to the caption board so it can allow
+    /// one caption and one vote a day. Not tied to the player in any other way.
+    static var clientId: String {
+        if let id = defaults.string(forKey: "sw-cid") { return id }
+        let id = UUID().uuidString
+        defaults.set(id, forKey: "sw-cid")
+        return id
+    }
+
+    /// Caption authors this player reported; their captions stay hidden here.
+    static var mutedAuthors: Set<String> {
+        get { Set(defaults.stringArray(forKey: "sw-muted") ?? []) }
+        set { defaults.set(Array(newValue), forKey: "sw-muted") }
+    }
+
     static var playerName: String {
         get { defaults.string(forKey: nameKey) ?? "" }
         set { defaults.set(newValue, forKey: nameKey) }

@@ -117,9 +117,9 @@ struct ContentView: View {
     }
 
     #if HOSTED_EMBED
-    static let webNote = "Word Hunt, Flag Match and Doodle are Sammy Word's own. The other daily games are made by their own creators and open in an in-app browser. Sammy Word isn't affiliated with them."
+    static let webNote = "Word Hunt, Flag Match and Caption the Meme are Sammy Word's own. The other daily games are made by their own creators and open in an in-app browser. Sammy Word isn't affiliated with them."
     #else
-    static let webNote = "Word Hunt, Flag Match and Doodle are Sammy Word's own. The other daily games are made by their own creators and open on their websites. Sammy Word isn't affiliated with them."
+    static let webNote = "Word Hunt, Flag Match and Caption the Meme are Sammy Word's own. The other daily games are made by their own creators and open on their websites. Sammy Word isn't affiliated with them."
     #endif
 
     private func step(_ n: Int, _ text: String) -> some View {

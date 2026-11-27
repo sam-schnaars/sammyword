@@ -25,9 +25,10 @@ on each side. This file is the contract that keeps them in sync.
 | Length-scaled haptics | `App.jsx` (`hapticForWord`) | `Haptics.swift` | ✅ both |
 | Challenge a friend (Word Hunt, both players' words, head-to-head results) | `share.js`, `App.jsx` (`Compare`/`ScoreDuel`) | `FriendBanner` + score bubble (`g=w`, `ks` score, `kd` day, `kr` best 3 words) | ⚠️ iOS shows score to beat, not both word lists |
 | Map of the Day + per-day best + global leaderboard | `board.js`, `share.js`, `api/leaderboard.js`, `src/leaderboard.js`, `App.jsx` | — | 🌐 web only |
-| Flag Match (timed flag→country quiz, 12 flags, 60 s) + challenge | `flags.js`, `FlagMatch.jsx`, `share.js` (`#f=`) | `FlagMatchView.swift`, `FlagMatchGame.swift`, `Flags.swift` (daily seed `hashStr("flags-"+UTC day)`; bubble `g=f`, `ks` = flags right) | ✅ both |
+| Flag Match (timed flag→country quiz, 5 flags, 60 s) + challenge | `flags.js`, `FlagMatch.jsx`, `share.js` (`#f=`) | `FlagMatchView.swift`, `FlagMatchGame.swift`, `Flags.swift` (daily seed `hashStr("flags-"+UTC day)`; bubble `g=f`, `ks` = flags right) | ✅ both |
 | Deep Cut (rare-answer trivia) + challenge | `deepcut.js`, `DeepCut.jsx`, `src/deepcut.json`, `share.js` (`#d=`) | — | 🌐 web only |
-| Doodle (draw a secret word on a 12×12 pixel grid, friends get 6 guesses with letter hints) | — | `Doodle.swift`, `DoodleView.swift` (bubble `g=d`, `dg` drawing, `dw` scrambled word; result `ks` = guesses, 0 = gave up, `kr` = word) | ⚠️ iOS only |
+| Daily Sammy prototype (one prompt a day, niche answers score more; community games below, Magnitudle card with ad slot) | own page `/mobile/daily/`: `daily/index.html`, `src/daily/` | — | 🌐 web only (prototype) |
+| Caption the Meme (daily: one original 16×16 pixel-art picture a day, same for everyone; write a caption, friends reply with theirs). Replaced Doodle on 2026-11-26 | — | `Caption.swift`, `CaptionView.swift`, `CaptionsAPI.swift` (picture = `Caption.meme(day: Daily.number())`; bubble `g=c`, `kd` day, `ct` caption; no score). Shared board: submit (name optional), then see everyone's captions and vote once, not for your own; served by `api/captions.js` | ⚠️ iOS only |
 | Pixel-art look (8-bit dusk sky, square bevelled boxes, pixel display font) | `pixel.css` (Silkscreen + Space Mono fonts) | `PixelArt.swift` (5×7 bitmap font, sprites) | ✅ both |
 | Mode picker | `App.jsx` (`ModeSelect`: Word Hunt / Flag Match / Deep Cut) | `RootView.swift` (`GameMenu`: Our games + More daily games; compact bar scrolls all games) | ⚠️ different game lists |
 | Game of the day home (one featured game a day in turn, day number, played-today ticks, streak) | — | `RootView.swift` (`GameMenu`), `DailyStore.swift` (`Daily.rotation`) | ⚠️ iOS only |
@@ -36,13 +37,20 @@ on each side. This file is the contract that keeps them in sync.
 
 ## Known gaps / platform differences
 
+- **Daily Sammy is a web-only prototype (2026-11-26).** It is its own page at
+  `/mobile/daily/`, separate from the app's mode picker, so the App Store build
+  is untouched. Port it to iOS only once the game and scoring are settled; the
+  answer shares are hand-made seed estimates until live tallies exist. The
+  Magnitudle card's ad slot is a labelled placeholder awaiting their creative.
+
 - **Own games are back on iOS (by request, 2026-11-23).** Word Hunt and Flag
   Match were restored from git (`59445d3^`) and redrawn in the pixel style, and
-  a new turn-based game, Doodle, was added. iOS plays each day's board/quiz
+  a new turn-based game, Doodle, was added (replaced by Caption the Meme on
+  2026-11-26). iOS plays each day's board/quiz
   (same for everyone), then lets you practice on random ones; web still lets
-  you pick a board shape and keeps Deep Cut. Doodle is iOS-only because it
-  needs Messages to pass the drawing between players; the web has no chat to
-  send it through.
+  you pick a board shape and keeps Deep Cut. Caption the Meme is iOS-only because
+  it needs Messages to trade captions between players; the web has no chat to
+  send them through.
 - **Two iOS builds from one codebase.** App Store builds can't embed other
   people's sites without their permission, so the four web games open in
   Safari there (a Messages extension can only open its own app, so the app
@@ -79,6 +87,7 @@ on each side. This file is the contract that keeps them in sync.
 
 | Letters | Points | Flag Match | Deep Cut (tier → points, from `deepcut.json`) |
 | --- | --- | --- | --- |
-| 3 → 100, 4 → 400, 5 → 800, 6 → 1400, 7 → 1800, 8+ → 2200 | | Web: +100 per correct answer. iOS: flags right out of 12 (same quiz rules, the bubble shows the count) | Common 100, Solid 250, Rare 500, Deep cut! 1000; miss/timeout 0 |
+| 3 → 100, 4 → 400, 5 → 800, 6 → 1400, 7 → 1800, 8+ → 2200 | | Web: +100 per correct answer. iOS: flags right out of 5 (same quiz rules, the bubble shows the count) | Common 100, Solid 250, Rare 500, Deep cut! 1000; miss/timeout 0 |
 
-Doodle (iOS): the result is how many guesses it took (1–6), 0 if the guesser gave up.
+Caption the Meme (iOS): no score; the caption is the result (shown as "captioned" in the played-today tick).
+Round lengths: Word Hunt 30 s (was 80 s), Flag Match 5 flags in 60 s (was 12), both platforms, 2026-11-26.

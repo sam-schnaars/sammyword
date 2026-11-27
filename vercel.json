@@ -5,6 +5,8 @@
     { "source": "/mobile/concepts/", "destination": "/concepts/index.html" },
     { "source": "/mobile/concepts/:name(mine|liftoff|duel)", "destination": "/concepts/:name.html" },
     { "source": "/mobile/concepts/:name(mine|liftoff|duel)/", "destination": "/concepts/:name.html" },
+    { "source": "/mobile/daily", "destination": "/daily/index.html" },
+    { "source": "/mobile/daily/", "destination": "/daily/index.html" },
     { "source": "/mobile/:path*", "destination": "/:path*" }
   ]
 }

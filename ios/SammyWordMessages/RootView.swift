@@ -29,12 +29,10 @@ struct CompactView: View {
                 VStack(spacing: 10) {
                     PixelSprite(art: p.game.sprite, scale: 4)
                     PixelText("SAMMY WORD", scale: 3, color: Pixel.gold, shadow: Pixel.goldDark)
-                    Text(p.isDoodlePrompt
-                         ? "\(p.senderName ?? "A friend") drew something — tap to guess"
+                    Text(p.game == .captionMeme && p.captionText != nil
+                         ? "\(p.senderName ?? "A friend") captioned today's meme — tap to see it and write yours"
                          : p.score == nil
                          ? "\(p.senderName ?? "A friend") wants to play \(p.game.title) — tap to play"
-                         : p.game == .doodle
-                         ? "\(p.senderName ?? "A friend") \(p.brag) — tap to draw the next one"
                          : "\(p.senderName ?? "A friend") \(p.brag) on \(p.game.title) — tap to beat it")
                         .font(Pixel.mono(14, .semibold))
                         .foregroundColor(Pixel.cream)
@@ -131,7 +129,7 @@ struct GameScreen: View {
         switch game {
         case .wordHunt: WordHuntView(incoming: incoming, session: session, onHome: onHome)
         case .flagMatch: FlagMatchView(incoming: incoming, session: session, onHome: onHome)
-        case .doodle: DoodleView(incoming: incoming, session: session, onHome: onHome)
+        case .captionMeme: CaptionView(incoming: incoming, session: session, onHome: onHome)
         default:
             #if HOSTED_EMBED
             WebGameView(game: game, incoming: incoming, session: session, onHome: onHome)
@@ -191,7 +189,7 @@ struct GameMenu: View {
                 PixelDisc(cells: 13, scale: 6, color: Color(hex: game.glow).opacity(0.22))
                 PixelSprite(art: game.sprite, scale: 6)
             }
-            PixelText(game.title, scale: 4)
+            PixelText(game.title, scale: game.title.count > 12 ? 3 : 4)
             Text(game.blurb)
                 .font(Pixel.mono(13))
                 .foregroundColor(Pixel.muted)

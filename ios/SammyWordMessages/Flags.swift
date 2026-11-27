@@ -23,7 +23,7 @@ struct FlagQuestion: Identifiable {
 
 enum Flags {
     static let roundSeconds = 60
-    static let questions = 12
+    static let questions = 5
     static let pointsPerCorrect = 100
 
     /// How strongly to bias prompts toward less-populated countries. Higher =
