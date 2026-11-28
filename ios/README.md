@@ -1,11 +1,17 @@
 # Sammy Word — iMessage Game (native iOS)
 
-A native iOS **iMessage app** that clones GamePigeon's **Word Hunt**, used as
-scaffolding (the concept will be re-themed later). Swift + SwiftUI. The game
-logic is intentionally free of UIKit/Messages so it stays portable.
+A native iOS **iMessage app** cloning GamePigeon, used as scaffolding (the
+concept will be re-themed later). Swift + SwiftUI. The game logic is
+intentionally free of UIKit/Messages so it stays portable.
+
+It is feature-equal with the web/React prototype in the repo root — see
+[`../PARITY.md`](../PARITY.md), which both platforms must keep in sync. Modes:
+**Word Hunt** (board shapes + a deterministic **Map of the Day** with a global
+leaderboard) and **Flag Match** (timed flag→country quiz). Both can challenge a
+friend head-to-head over iMessage.
 
 > This is the **native iOS** version. (The web/React prototype lives in the
-> repo root and is unrelated.)
+> repo root; the two are kept at parity, not shared code.)
 
 ## What's here
 
@@ -18,15 +24,22 @@ ios/
     Info.plist
     Assets.xcassets/
   SammyWordMessages/              # the iMessage extension — the game
-    MessagesViewController.swift  # MSMessagesAppViewController + UIHostingController
+    MessagesViewController.swift  # MSMessagesAppViewController + UIHostingController + bubble images
     GameSession.swift             # SwiftUI ↔ Messages bridge (callbacks)
-    RootView.swift                # compact vs expanded
+    RootView.swift                # mode picker, Word Hunt home/results, leaderboard
     GameView.swift                # board UI, drag selection, trail
     WordHuntGame.swift            # selection state, scoring, 80s timer
-    GameBoard.swift               # tiles, Boggle dice, adjacency
+    GameBoard.swift               # tiles, letter bag, adjacency
+    BoardGenerator.swift          # solvable boards + deterministic Map of the Day
+    SeededRNG.swift               # mulberry32 PRNG + hash (daily board, flag quiz)
+    DailyStore.swift              # per-day personal best, name, client id (UserDefaults)
+    Leaderboard.swift             # global daily leaderboard client (/api/leaderboard)
+    Flags.swift                   # country bank + seeded Flag Match quiz
+    FlagMatchGame.swift           # Flag Match round state
+    FlagMatchView.swift           # Flag Match UI
     Scoring.swift                 # Word Hunt score table
-    WordDictionary.swift          # loads words.txt into a Set
-    GameMessage.swift             # URL encode/decode of game state
+    WordDictionary.swift          # loads words.txt into a sorted prefix index
+    GameMessage.swift             # URL encode/decode of game state (Word Hunt + Flag Match)
     Theme.swift                   # all colors & fonts (re-theme here)
     Info.plist                    # NSExtension config
     Resources/words.txt           # starter dictionary (run the script for the full one)

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#07051c" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+    <title>Liftoff — concept B</title>
+    <link rel="stylesheet" href="./kit.css" />
+    <style>
+      :root { --bg: #07051c; --panel: #120f3d; --line: #3b36a8; --cyan: #5ff0ff; --pink: #ff6ad5; --yellow: #ffe45e; --white: #eef0ff; }
+      body { font-family: 'Silkscreen', monospace; color: var(--white); background: var(--bg); }
+      .hud { position: absolute; top: 0; left: 0; right: 0; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 13px; pointer-events: none; text-shadow: 2px 2px 0 #000; }
+      .hud .alt { font-size: 26px; color: var(--cyan); font-weight: 700; }
+      .hud .right { text-align: right; }
+      .cells { display: flex; gap: 4px; justify-content: flex-end; margin-top: 4px; }
+      .cells i { width: 12px; height: 18px; border: 2px solid var(--white); background: var(--yellow); }
+      .cells i.off { background: transparent; border-color: #5a5a8a; }
+      #mult { color: var(--pink); min-height: 16px; }
+      #toast { position: absolute; left: 0; right: 0; top: 24%; text-align: center; pointer-events: none; opacity: 0; text-shadow: 2px 2px 0 #000; }
+      #toast.on { animation: pop 1.4s ease-out; }
+      #toast .big { display: block; font-size: 30px; font-weight: 700; }
+      #toast .sm { font-size: 14px; }
+      @keyframes pop { 0% { opacity: 0; transform: scale(0.7); } 12% { opacity: 1; transform: scale(1.08); } 20% { transform: scale(1); } 78% { opacity: 1; } 100% { opacity: 0; } }
+      .t0 { color: #ff5c5c; } .t1 { color: #c8cbe8; } .t2 { color: var(--cyan); } .t3 { color: var(--pink); } .t4 { color: var(--yellow); }
+      .panel { background: var(--panel); border-top: 3px solid var(--line); padding: 10px 12px 14px; }
+      .stage { display: flex; justify-content: space-between; font-size: 12px; color: #9da0d8; }
+      .timebar { height: 8px; background: #000; border: 2px solid var(--line); margin: 6px 0 8px; }
+      .timebar i { display: block; height: 100%; background: var(--cyan); transition: width 1s linear; }
+      .timebar.low i { background: #ff5c5c; }
+      #prompt { font-size: 19px; font-weight: 700; text-align: center; line-height: 1.25; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+      form { display: flex; gap: 8px; margin-top: 8px; }
+      input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 10px; background: #000; color: var(--white); border: 2px solid var(--cyan); outline: none; }
+      input:focus { box-shadow: 0 0 0 2px var(--pink); }
+      .btn { background: var(--pink); color: #1a0030; border: 2px solid var(--white); padding: 10px 14px; font-weight: 700; font-size: 15px; box-shadow: 4px 4px 0 #7a1f6a; }
+      .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 #7a1f6a; }
+      #msg { min-height: 18px; margin-top: 8px; font-size: 12px; text-align: center; color: #ff9c9c; }
+      .overlay { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center; background: #07051ccc; overflow-y: auto; }
+      .overlay.title { background: linear-gradient(#07051c00 38%, #07051cf0 52%); justify-content: flex-end; padding-bottom: 7vh; }
+      h1 { font-size: 44px; font-weight: 700; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink), 6px 6px 0 #3b36a8; letter-spacing: 2px; }
+      .overlay p { font-size: 13px; max-width: 330px; line-height: 1.5; }
+      .rules { font-size: 12px; text-align: left; max-width: 320px; display: grid; gap: 6px; }
+      .rules b { color: var(--cyan); }
+      .big-alt { font-size: 48px; font-weight: 700; color: var(--cyan); text-shadow: 4px 4px 0 #3b36a8; }
+      .recap { width: 100%; max-width: 340px; font-size: 12px; text-align: left; display: grid; gap: 8px; }
+      .recap div { border: 2px solid var(--line); background: #000a; padding: 6px 8px; }
+      .recap small { display: block; color: #9da0d8; margin-bottom: 2px; }
+      .recap span { float: right; }
+      a.back { color: var(--white); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="scene" id="scene">
+        <canvas id="cv"></canvas>
+        <div class="hud hidden" id="hud">
+          <div><div class="alt"><span id="alt">0</span> KM</div><div id="zone">LAUNCH PAD</div></div>
+          <div class="right"><div>FUEL</div><div class="cells" id="cells"></div><div id="mult"></div></div>
+        </div>
+        <div id="toast"></div>
+        <div class="overlay title" id="title">
+          <h1>LIFTOFF</h1>
+          <p>Five stages. One answer each. The rarer your answer, the harder the boost.</p>
+          <div class="rules">
+            <div><b>FUEL ×3</b> — a wrong guess or a timeout burns a cell. Lose all three and the mission ends.</div>
+            <div><b>SLINGSHOT</b> — chain rare answers to multiply your boost, up to ×2.5.</div>
+          </div>
+          <button class="btn" id="start">IGNITION</button>
+          <a class="back" href="./">← all concepts</a>
+        </div>
+        <div class="overlay hidden" id="over"></div>
+      </div>
+      <div class="panel hidden" id="panel">
+        <div class="stage"><span id="stage">STAGE 1/5</span><span id="secs">20</span></div>
+        <div class="timebar" id="timebar"><i id="timefill" style="width: 100%"></i></div>
+        <div id="prompt"></div>
+        <form id="form" autocomplete="off">
+          <input id="guess" placeholder="Type an answer…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" />
+          <button class="btn" type="submit">BOOST</button>
+        </form>
+        <div id="msg"></div>
+      </div>
+    </div>
+    <script type="module" src="./liftoff.js"></script>
+  </body>
+</html>

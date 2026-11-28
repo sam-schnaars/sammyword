@@ -14,8 +14,15 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.requestExpand = { [weak self] in
             self?.requestPresentationStyle(.expanded)
         }
-        session.sendResult = { [weak self] payload, caption in
-            self?.send(payload: payload, caption: caption)
+        session.requestCollapse = { [weak self] in
+            self?.requestPresentationStyle(.compact)
+        }
+        session.openURL = { [weak self] url in
+            self?.extensionContext?.open(url, completionHandler: nil)
+        }
+        session.sendNow = { [weak self] payload, done in
+            guard let self else { return done("closed") }
+            self.sendNow(payload, done: done)
         }
 
         let host = UIHostingController(rootView: RootView(session: session))
@@ -37,13 +44,23 @@ final class MessagesViewController: MSMessagesAppViewController {
 
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
-        updateIncoming(from: conversation.selectedMessage)
+        updateIncoming(from: conversation.selectedMessage, in: conversation)
         syncPresentation()
+    }
+
+    /// Opening the app fresh goes full height onto the home screen (game of the
+    /// day up top), and a friend's bubble goes straight into that game. Only on
+    /// activation, so swiping down still collapses.
+    override func didBecomeActive(with conversation: MSConversation) {
+        super.didBecomeActive(with: conversation)
+        guard presentationStyle == .compact else { return }
+        session.launchMode = session.incoming?.game
+        requestPresentationStyle(.expanded)
     }
 
     override func didSelect(_ message: MSMessage, conversation: MSConversation) {
         super.didSelect(message, conversation: conversation)
-        updateIncoming(from: message)
+        updateIncoming(from: message, in: conversation)
     }
 
     override func willTransition(to presentationStyle: MSMessagesAppPresentationStyle) {
@@ -55,72 +72,47 @@ final class MessagesViewController: MSMessagesAppViewController {
         session.presentation = (style ?? presentationStyle) == .expanded ? .expanded : .compact
     }
 
-    private func updateIncoming(from message: MSMessage?) {
+    private func updateIncoming(from message: MSMessage?, in conversation: MSConversation) {
+        session.incomingIsMine = message.map { $0.senderParticipantIdentifier == conversation.localParticipantIdentifier } ?? false
         session.incoming = GameMessage.decode(message?.url)
     }
 
     // MARK: - Sending
 
-    private func send(payload: GamePayload, caption: String) {
-        guard let conversation = activeConversation else { return }
-
-        // Reuse the existing game's session so prior bubbles collapse (GamePigeon
-        // style); otherwise start a new one.
-        let msgSession = conversation.selectedMessage?.session ?? MSSession()
-        let message = MSMessage(session: msgSession)
-
+    private func makeMessage(_ payload: ScorePayload, in conversation: MSConversation) -> MSMessage {
+        // Reuse the tapped bubble's session so earlier bubbles in the thread
+        // collapse; otherwise start a new one.
+        let message = MSMessage(session: conversation.selectedMessage?.session ?? MSSession())
         let layout = MSMessageTemplateLayout()
-        layout.caption = caption
-        layout.image = BoardImageRenderer.image(for: payload.board)
+        layout.caption = payload.caption
+        layout.image = ScoreImageRenderer.image(for: payload)
         message.layout = layout
         message.url = GameMessage.encode(payload)
-
-        conversation.insert(message) { _ in }
-        requestPresentationStyle(.compact)
+        return message
     }
-}
 
-/// Renders a small board preview for the message bubble. UIKit lives here, not
-/// in the game model.
-enum BoardImageRenderer {
-    static func image(for board: GameBoard, size: CGFloat = 320) -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
-        return renderer.image { ctx in
-            let cg = ctx.cgContext
-
-            // Orange background
-            cg.setFillColor(UIColor(red: 0.96, green: 0.65, blue: 0.13, alpha: 1).cgColor)
-            cg.fill(CGRect(x: 0, y: 0, width: size, height: size))
-
-            let pad: CGFloat = size * 0.08
-            let gap: CGFloat = size * 0.03
-            let cell = (size - pad * 2 - gap * 3) / 4
-            let tileColor = UIColor(red: 0.98, green: 0.95, blue: 0.88, alpha: 1)
-            let letterColor = UIColor(red: 0.29, green: 0.23, blue: 0.16, alpha: 1)
-
-            for i in 0..<GameBoard.cellCount {
-                let r = CGFloat(i / 4)
-                let c = CGFloat(i % 4)
-                let x = pad + c * (cell + gap)
-                let y = pad + r * (cell + gap)
-                let rect = CGRect(x: x, y: y, width: cell, height: cell)
-                let path = UIBezierPath(roundedRect: rect, cornerRadius: cell * 0.18)
-                tileColor.setFill()
-                path.fill()
-
-                let raw = board.tiles[i].letter
-                let text = raw == "QU" ? "Qu" : raw
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: cell * 0.42, weight: .heavy),
-                    .foregroundColor: letterColor,
-                ]
-                let str = NSAttributedString(string: text, attributes: attrs)
-                let textSize = str.size()
-                str.draw(at: CGPoint(
-                    x: rect.midX - textSize.width / 2,
-                    y: rect.midY - textSize.height / 2
-                ))
+    /// Send without the extra tap. Apple only lets `MSConversation.send` through
+    /// while the extension is visible and has had a recent touch, and it can
+    /// refuse (or never answer). Whatever happens the player ends up looking at
+    /// the chat: on success the bubble is in the transcript; otherwise it is
+    /// staged in the input field, one tap on the arrow from sent.
+    private func sendNow(_ payload: ScorePayload, done: @escaping (String?) -> Void) {
+        guard let conversation = activeConversation else { return done("no chat") }
+        let message = makeMessage(payload, in: conversation)
+        var settled = false
+        let settle: (String?) -> Void = { [weak self] failure in
+            DispatchQueue.main.async {
+                guard !settled else { return }
+                settled = true
+                if failure != nil { conversation.insert(message) { _ in } }
+                done(failure)
+                self?.requestPresentationStyle(.compact)
             }
         }
+        conversation.send(message) { error in
+            settle(error.map { "error \(($0 as NSError).code)" })
+        }
+        // No answer from Messages counts as a refusal.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { settle("timeout") }
     }
 }

@@ -8,13 +8,15 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.1"
+    CURRENT_PROJECT_VERSION: "20"
     SWIFT_VERSION: "5.0"
     # We supply our own Info.plist files, so don't auto-generate them.
     GENERATE_INFOPLIST_FILE: NO
-    TARGETED_DEVICE_FAMILY: "1,2"
+    TARGETED_DEVICE_FAMILY: "1"   # iPhone only (no iPad screenshots needed)
     CODE_SIGN_STYLE: Automatic
+    # Your paid Apple Developer team — keeps signing set across project regen.
+    DEVELOPMENT_TEAM: N5UFSQDWQC
 
 targets:
   # ---- Container iOS app (required host for the iMessage extension) ----
@@ -23,9 +25,21 @@ targets:
     platform: iOS
     sources:
       - SammyWord
+      # Shared with the extension so the host app wears the same pixel art.
+      - SammyWordMessages/PixelArt.swift
+      - SammyWordMessages/Theme.swift
+      - SammyWordMessages/GameMessage.swift
+      - SammyWordMessages/DailyStore.swift
+      - SammyWordMessages/Flags.swift
+      - SammyWordMessages/SeededRNG.swift
+      - SammyWordMessages/Caption.swift
+      - SammyWordMessages/WebGamePage.swift
+      - SammyWordMessages/ScoreImageRenderer.swift
+      - SammyWordMessages/MemeImages.swift
     settings:
       base:
         INFOPLIST_FILE: SammyWord/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"   # XcodeGen defaults targets to iPhone + iPad; keep iPhone only
         PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
@@ -41,5 +55,25 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: SammyWordMessages/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
         PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord.SammyWordMessages
         ASSETCATALOG_COMPILER_APPICON_NAME: "iMessage App Icon"
+
+  # ---- Simulator-only preview of the games (demos/screenshots; never shipped) ----
+  SammyWordPreview:
+    type: application
+    platform: iOS
+    sources:
+      - Preview
+      - path: SammyWordMessages
+        excludes:
+          - MessagesViewController.swift
+          - Info.plist
+          - Assets.xcassets
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: SW Preview
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_BUNDLE_IDENTIFIER: com.samschnaars.SammyWord.Preview

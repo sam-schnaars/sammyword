@@ -15,7 +15,7 @@ function getClientId() {
 }
 
 export async function submitScore({ day, score, name }) {
-  const res = await fetch('/api/leaderboard', {
+  const res = await fetch(`${import.meta.env.BASE_URL}api/leaderboard`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ day, score, name, clientId: getClientId() }),
@@ -27,7 +27,7 @@ export async function submitScore({ day, score, name }) {
 
 export async function fetchLeaderboard(day) {
   const res = await fetch(
-    `/api/leaderboard?day=${encodeURIComponent(day)}&clientId=${encodeURIComponent(getClientId())}`,
+    `${import.meta.env.BASE_URL}api/leaderboard?day=${encodeURIComponent(day)}&clientId=${encodeURIComponent(getClientId())}`,
   )
   const data = await res.json()
   if (!res.ok) throw new Error(data?.error || 'fetch failed')

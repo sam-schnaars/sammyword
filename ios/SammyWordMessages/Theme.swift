@@ -1,37 +1,68 @@
 import SwiftUI
 
 /// All colors and fonts in one place — re-theming later is a single-file edit.
-/// Tuned to approximate GamePigeon's Word Hunt: warm orange background, cream
-/// rounded tiles, bold rounded brown letters.
+/// Mirrors the Sammy Word web app: near-black background with faint diagonal
+/// metal stripes, brushed-steel tiles, cool blue selection trail, and a blue
+/// "valid word" bubble.
 enum Theme {
-    // Background gradient
-    static let backgroundTop = Color(hex: 0xF5A623)
-    static let backgroundBottom = Color(hex: 0xE8821E)
-    static var background: LinearGradient {
-        LinearGradient(
-            colors: [backgroundTop, backgroundBottom],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+    // App background (near-black with faint diagonal stripes)
+    static let bgDark = Color(hex: 0x0C0C10)
+    static let bgStripeA = Color(hex: 0x0E0E14)
+    static let bgStripeB = Color(hex: 0x111118)
+    static var background: some View { PixelSky() }
+
+    // Board frame
+    static let boardPanel = Color(hex: 0x16171E)
+    static let boardRim = Color(hex: 0x3C3F52)
+    static let boardRimDark = Color(hex: 0x1A1B24)
+
+    // Brushed-metal tiles
+    static let tileTop = Color(hex: 0x545A6A)
+    static let tileBottom = Color(hex: 0x363B48)
+    static let tileText = Color(hex: 0xDDE3F0)
+    static var tileGradient: LinearGradient {
+        LinearGradient(colors: [tileTop, tileBottom], startPoint: .top, endPoint: .bottom)
     }
 
-    // Tiles
-    static let tile = Color(hex: 0xFBF3E0)
-    static let tileSelected = Color(hex: 0xFFD45E)
-    static let tileShadow = Color(hex: 0xD9B98A)
-    static let letter = Color(hex: 0x4A3B2A)
+    // Selection (cool blue) + trail
+    static let selected = Color(hex: 0x4A8FD4)
+    static let selectedRing = Color(hex: 0x7AB8F5)
+    static let trail = Color(hex: 0x7AB8F5)
 
-    // Selection trail
-    static let trail = Color(hex: 0xFFC246).opacity(0.85)
-
-    // UI accents
+    // HUD / cards / panels
+    static let headerCard = Color(hex: 0x1A1B24)
+    static let panel = Color(hex: 0x1F2030)
+    static let panelBorder = Color(hex: 0x2E3040)
+    static let headerText = Color(hex: 0xC8D4EA)
+    static let mutedText = Color(hex: 0x9DA8BE)
+    static let dimText = Color(hex: 0x6A76A0)
     static let onBackground = Color.white
-    static let pill = Color.white.opacity(0.22)
-    static let card = Color.white
-    static let accent = Color(hex: 0xE8821E)
-    static let valid = Color(hex: 0x3E8E2F)
 
-    // Fonts (GamePigeon-ish rounded)
+    // Current-word bubble states
+    static let bubbleBg = Color(hex: 0x1A1B24)
+    static let validBubbleBg = Color(hex: 0x15281E)
+    static let validBubbleText = Color(hex: 0x5FD4A0)
+    static let validBubbleBorder = Color(hex: 0x2E7A56)
+    static let dupeBubbleBg = Color(hex: 0x2A2010)
+    static let dupeBubbleText = Color(hex: 0xD4A040)
+    static let dupeBubbleBorder = Color(hex: 0x6A5020)
+
+    // Primary (blue, 3D) button
+    static let accent = Color(hex: 0x3A7BD5)
+    static let accentDark = Color(hex: 0x2C5FA8)
+
+    // Positive / completed (green) — e.g. a fully-found word-length goal
+    static let positive = Color(hex: 0x5FD4A0)
+    static let positiveBg = Color(hex: 0x15281E)
+    static let positiveBorder = Color(hex: 0x2E7A56)
+    static let positiveDim = Color(hex: 0x5AA982)
+
+    // Timer low / danger
+    static let lowBg = Color(hex: 0x3A1820)
+    static let lowBorder = Color(hex: 0x8A2030)
+    static let lowText = Color(hex: 0xF08090)
+
+    // Fonts (Fredoka-ish rounded for UI, heavy for letters)
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }

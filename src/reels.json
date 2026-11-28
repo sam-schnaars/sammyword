@@ -1,0 +1,345 @@
+{
+ "version": 1,
+ "seconds": 8,
+ "sets": [
+  {
+   "title": "Space life",
+   "reels": [
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2025m000002_How_Do_Astronauts_Exercise_in_Space_250106-MP4/jsc2025m000002_How_Do_Astronauts_Exercise_in_Space_250106-MP4~mobile.mp4",
+     "start": 20,
+     "caption": "POV: leg day but there's no floor",
+     "fact": "Astronauts exercise about 2 hours a day so their bones and muscles don't waste away.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/Plant_Habitat-04_Harvest/Plant_Habitat-04_Harvest~mobile.mp4",
+     "start": 28,
+     "caption": "me harvesting the hottest crop in the galaxy",
+     "fact": "In 2021 astronauts grew and ate the first chile peppers ever grown on the space station.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2023m000117-STEMonstrations_Properties_of_Water_social/jsc2023m000117-STEMonstrations_Properties_of_Water_social~mobile.mp4",
+     "start": 40,
+     "caption": "you are literally mostly water rn",
+     "fact": "About 71% of Earth's surface is covered by water.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2022m000063-STEMonstrations_Centripetal_Force_social/jsc2022m000063-STEMonstrations_Centripetal_Force_social~mobile.mp4",
+     "start": 106,
+     "caption": "when the group chat goes off at 3am",
+     "fact": "Centripetal force pulls a spinning object toward the center of its circle.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2023m000212_The_Case_of_the_Missing_Space_Tomatoes-MP4/jsc2023m000212_The_Case_of_the_Missing_Space_Tomatoes-MP4~mobile.mp4",
+     "start": 16,
+     "caption": "tomatoes under the pink party lights",
+     "fact": "Astronaut Frank Rubio spent 371 days in space, the longest single trip by an American.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2024m000115-STEMonstrations_Momentum_and_Impulse_social/jsc2024m000115-STEMonstrations_Momentum_and_Impulse_social~mobile.mp4",
+     "start": 140,
+     "caption": "holding the whole world like it owes me money",
+     "fact": "Momentum is mass times velocity: heavy and fast is hard to stop.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2021m000207-STEMonstrations_Five_Senses_social/jsc2021m000207-STEMonstrations_Five_Senses_social~mobile.mp4",
+     "start": 115,
+     "caption": "space food hits different (it hits less)",
+     "fact": "Food tastes blander in space because fluids drift to your head and stuff up your nose.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/Plant_Habitat-04_Pollination/Plant_Habitat-04_Pollination~mobile.mp4",
+     "start": 4,
+     "caption": "no bees? I'll do it myself",
+     "fact": "With no bees in space, astronauts pollinate pepper flowers by hand.",
+     "credit": "NASA"
+    }
+   ],
+   "quiz": [
+    {
+     "q": "About how long do astronauts exercise each day?",
+     "options": [
+      "2 hours",
+      "20 minutes",
+      "5 hours",
+      "They don't need to"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What was the astronaut in the black T-shirt harvesting?",
+     "options": [
+      "Chile peppers",
+      "Strawberries",
+      "Lettuce",
+      "Potatoes"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What color was the glove doing the pollinating?",
+     "options": [
+      "Blue",
+      "White",
+      "Purple",
+      "Black"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What share of Earth's surface is covered by water?",
+     "options": [
+      "71%",
+      "50%",
+      "85%",
+      "62%"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What was the astronaut holding in the momentum reel?",
+     "options": [
+      "An inflatable globe",
+      "A water pouch",
+      "A tomato",
+      "A wrench"
+     ],
+     "answer": 0
+    }
+   ]
+  },
+  {
+   "title": "Mars and beyond",
+   "reels": [
+    {
+     "src": "https://images-assets.nasa.gov/video/JPL-20210401-TECHf-0001-Mars%20Helicopter%20Prepares%20for%20Takeoff%20UHD%20Master/JPL-20210401-TECHf-0001-Mars%20Helicopter%20Prepares%20for%20Takeoff%20UHD%20Master~mobile.mp4",
+     "start": 8,
+     "caption": "tiny helicopter, big dreams",
+     "fact": "Ingenuity was the first aircraft to make a powered, controlled flight on another planet, in 2021.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/JPL-20210222-M2020f-0001-Perseverance%20Rover%E2%80%99s%20Descent%20and%20Touchdown%20on%20Mars/JPL-20210222-M2020f-0001-Perseverance%20Rover%E2%80%99s%20Descent%20and%20Touchdown%20on%20Mars~mobile.mp4",
+     "start": 160,
+     "caption": "the floor is approaching (it's Mars)",
+     "fact": "Perseverance landed in Mars's Jezero Crater on February 18, 2021.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/JPL-20210625-M2020f-0001-Taking%20a%20Selfie%20on%20Mars%20UHD/JPL-20210625-M2020f-0001-Taking%20a%20Selfie%20on%20Mars%20UHD~mobile.mp4",
+     "start": 58,
+     "caption": "rover selfie, helicopter photobomb",
+     "fact": "The rover's famous selfie with Ingenuity was stitched together from 62 photos.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/GSFC_20180313_Jupiter_m12878_GreatRedSpot/GSFC_20180313_Jupiter_m12878_GreatRedSpot~mobile.mp4",
+     "start": 34,
+     "caption": "Jupiter's red spot has been a storm longer than your situationship",
+     "fact": "Jupiter's Great Red Spot is a storm wider than the whole Earth.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/GSFC_20160426_SDO_m12224_SolarFlare/GSFC_20160426_SDO_m12224_SolarFlare~mobile.mp4",
+     "start": 30,
+     "caption": "the sun when I open my blinds",
+     "fact": "This solar flare was filmed by NASA's Solar Dynamics Observatory, which watches the Sun nonstop.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2022m000270_Orion_First_Imagery_Timelapse_and_Original_221117/jsc2022m000270_Orion_First_Imagery_Timelapse_and_Original_221117~mobile.mp4",
+     "start": 50,
+     "caption": "home is that little crescent",
+     "fact": "On Artemis I in 2022, the Orion capsule flew around the Moon with no crew on board.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/KSC-20221014-MH-MTD01-0001-SpaceX_Crew_4_Splashdown_UAS_Recovery_Footage-3316493/KSC-20221014-MH-MTD01-0001-SpaceX_Crew_4_Splashdown_UAS_Recovery_Footage-3316493~mobile.mp4",
+     "start": 12,
+     "caption": "four parachutes and a dream",
+     "fact": "Crew Dragon slows down under four main parachutes before splashing into the ocean.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/Artemis%20I%20Launch%202022%20CU%20tracking%20from%20Press%20Site_compressed/Artemis%20I%20Launch%202022%20CU%20tracking%20from%20Press%20Site_compressed~mobile.mp4",
+     "start": 72,
+     "caption": "me leaving the function early",
+     "fact": "Artemis I launched on NASA's SLS rocket on November 16, 2022.",
+     "credit": "NASA"
+    }
+   ],
+   "quiz": [
+    {
+     "q": "Which crater did Perseverance land in?",
+     "options": [
+      "Jezero",
+      "Gale",
+      "Tycho",
+      "Olympus"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "How many photos make up the rover's selfie with Ingenuity?",
+     "options": [
+      "62",
+      "8",
+      "1",
+      "500"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What color were Crew Dragon's parachutes?",
+     "options": [
+      "White and red",
+      "All orange",
+      "Blue and white",
+      "Green"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "Which spacecraft filmed the solar flare?",
+     "options": [
+      "Solar Dynamics Observatory",
+      "Hubble",
+      "Voyager 1",
+      "Juno"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What year did Artemis I launch?",
+     "options": [
+      "2022",
+      "2019",
+      "2024",
+      "1969"
+     ],
+     "answer": 0
+    }
+   ]
+  },
+  {
+   "title": "Old school and floaty",
+   "reels": [
+    {
+     "src": "https://images-assets.nasa.gov/video/Apollo%2015%20Never%20Been%20on%20a%20Ride%20like%20this%20Before/Apollo%2015%20Never%20Been%20on%20a%20Ride%20like%20this%20Before~mobile.mp4",
+     "start": 60,
+     "caption": "gold visor = main character",
+     "fact": "Apollo 15 in 1971 was the first mission to drive a car on the Moon: the Lunar Roving Vehicle.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/KSC-19690716-MH-NAS01-0001-Apollo_11_Historical_Footage_and_Broll-DVC_1560/KSC-19690716-MH-NAS01-0001-Apollo_11_Historical_Footage_and_Broll-DVC_1560~mobile.mp4",
+     "start": 420,
+     "caption": "fishbowl helmet fit check",
+     "fact": "Apollo 11 landed on the Moon on July 20, 1969.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/HD%20049%20Mercury_Gemini_Apollo_Resource%20Reel%201/HD%20049%20Mercury_Gemini_Apollo_Resource%20Reel%201~mobile.mp4",
+     "start": 125,
+     "caption": "just parked the jet, no big deal",
+     "fact": "The first American astronauts, the Mercury Seven, were all military test pilots.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/HD%20049%20Mercury_Gemini_Apollo_Resource%20Reel%201/HD%20049%20Mercury_Gemini_Apollo_Resource%20Reel%201~mobile.mp4",
+     "start": 225,
+     "caption": "desert survival training but make it a group photo",
+     "fact": "Early astronauts trained to survive in the desert in case their capsule landed off course.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/Step_Inside_the_Station-4K/Step_Inside_the_Station-4K~mobile.mp4",
+     "start": 30,
+     "caption": "the hallway in my apartment, but in space",
+     "fact": "The space station is about as long as a football field.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2024m000115-STEMonstrations_Momentum_and_Impulse_social/jsc2024m000115-STEMonstrations_Momentum_and_Impulse_social~mobile.mp4",
+     "start": 62,
+     "caption": "getting weighed with no gravity",
+     "fact": "Scales don't work in orbit, so a machine weighs astronauts by measuring how hard it is to push them.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/jsc2023m000117-STEMonstrations_Properties_of_Water_social/jsc2023m000117-STEMonstrations_Properties_of_Water_social~mobile.mp4",
+     "start": 330,
+     "caption": "which way is up? doesn't matter",
+     "fact": "On the space station there is no real 'up' or 'down'.",
+     "credit": "NASA"
+    },
+    {
+     "src": "https://images-assets.nasa.gov/video/NHQ_2020_0925_AskNASA%E2%94%83%20HOW%20DO%20ASTRONAUTS%20USE%20THE%20POTTY%20IN%20SPACE/NHQ_2020_0925_AskNASA%E2%94%83%20HOW%20DO%20ASTRONAUTS%20USE%20THE%20POTTY%20IN%20SPACE~mobile.mp4",
+     "start": 93,
+     "caption": "when the new crew finally shows up",
+     "fact": "People have lived on the space station nonstop since November 2000.",
+     "credit": "NASA"
+    }
+   ],
+   "quiz": [
+    {
+     "q": "What did Apollo 15 bring to the Moon for the first time?",
+     "options": [
+      "A car",
+      "A flag",
+      "A golf club",
+      "A dog"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What color were the desert survival trainees' suits?",
+     "options": [
+      "Orange",
+      "White",
+      "Green",
+      "Blue"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "What was the pilot wearing over his flight suit next to the jet?",
+     "options": [
+      "A yellow life vest",
+      "A red scarf",
+      "A parachute",
+      "Nothing"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "How do astronauts get weighed in space?",
+     "options": [
+      "A machine measures how hard they are to push",
+      "A normal bathroom scale",
+      "They don't, ever",
+      "By measuring their height"
+     ],
+     "answer": 0
+    },
+    {
+     "q": "People have lived on the space station nonstop since…",
+     "options": [
+      "2000",
+      "1969",
+      "2011",
+      "1998"
+     ],
+     "answer": 0
+    }
+   ]
+  }
+ ]
+}

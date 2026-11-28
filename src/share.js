@@ -13,9 +13,19 @@ function fromB64Url(str) {
   return decodeURIComponent(escape(atob(s)))
 }
 
-// challenge: { mapId: string, letters: string, score: number, name: string }
-export function encodeChallenge({ mapId, letters, score, name }) {
-  return toB64Url(JSON.stringify({ m: mapId, b: letters, s: score, n: name || '' }))
+// challenge: { mapId, letters, score, name, words: string[] }
+// `words` is the sender's found words (lowercase), so the recipient can see what
+// the sender found and the end screen can compare both word lists side by side.
+export function encodeChallenge({ mapId, letters, score, name, words }) {
+  return toB64Url(
+    JSON.stringify({
+      m: mapId,
+      b: letters,
+      s: score,
+      n: name || '',
+      w: (words || []).join(','),
+    }),
+  )
 }
 
 export function decodeChallenge(str) {
@@ -27,6 +37,10 @@ export function decodeChallenge(str) {
       letters: p.b.toUpperCase(),
       score: Number(p.s) || 0,
       name: String(p.n || ''),
+      words:
+        typeof p.w === 'string' && p.w.length
+          ? p.w.split(',').filter(Boolean)
+          : [],
     }
   } catch {
     return null
@@ -44,6 +58,66 @@ export function readChallengeFromUrl() {
 
 export function clearChallengeFromUrl() {
   history.replaceState(null, '', location.pathname + location.search)
+}
+
+// ---- Flag Match challenge (mode "f") ----
+// A challenge replays the same seeded quiz, so we only carry the seed + score.
+// flagChallenge: { seed: number, score: number, name: string }
+export function encodeFlagChallenge({ seed, score, name }) {
+  return toB64Url(JSON.stringify({ f: seed, s: score, n: name || '' }))
+}
+
+export function decodeFlagChallenge(str) {
+  try {
+    const p = JSON.parse(fromB64Url(str))
+    if (typeof p.f !== 'number') return null
+    return { seed: Number(p.f), score: Number(p.s) || 0, name: String(p.n || '') }
+  } catch {
+    return null
+  }
+}
+
+export function buildFlagChallengeUrl(data) {
+  return `${location.origin}${location.pathname}#f=${encodeFlagChallenge(data)}`
+}
+
+export function readFlagChallengeFromUrl() {
+  const m = location.hash.match(/[#&]f=([^&]+)/)
+  return m ? decodeFlagChallenge(m[1]) : null
+}
+
+// ---- Deep Cut challenge (mode "d") ----
+// The seed replays the same prompts; `answers` are the sender's raw guesses
+// (one per prompt, "" if none) so the recipient sees them head-to-head.
+// deepChallenge: { seed: number, score: number, name: string, answers: string[] }
+export function encodeDeepChallenge({ seed, score, name, answers }) {
+  return toB64Url(
+    JSON.stringify({ d: seed, s: score, n: name || '', a: (answers || []).map(String) }),
+  )
+}
+
+export function decodeDeepChallenge(str) {
+  try {
+    const p = JSON.parse(fromB64Url(str))
+    if (typeof p.d !== 'number') return null
+    return {
+      seed: Number(p.d),
+      score: Number(p.s) || 0,
+      name: String(p.n || ''),
+      answers: Array.isArray(p.a) ? p.a.map(String) : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+export function buildDeepChallengeUrl(data) {
+  return `${location.origin}${location.pathname}#d=${encodeDeepChallenge(data)}`
+}
+
+export function readDeepChallengeFromUrl() {
+  const m = location.hash.match(/[#&]d=([^&]+)/)
+  return m ? decodeDeepChallenge(m[1]) : null
 }
 
 // Local (this-device) personal best for the daily board, keyed by day.

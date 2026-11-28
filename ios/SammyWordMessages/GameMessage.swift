@@ -1,56 +1,211 @@
 import Foundation
 
-/// The game state carried inside an `MSMessage.url`. Everything is
-/// URL-serializable so the whole turn lives in the message itself (like
-/// GamePigeon). No Messages/UIKit imports here — just URL plumbing.
-struct GamePayload: Equatable {
-    var letters: [String]            // the 16 tiles
-    var challengerScore: Int?        // score to beat (nil for a fresh board)
-    var challengerName: String?
+/// Every game in Sammy Word. Four are ours (Word Hunt, Flag Match, Caption the
+/// Meme, Scroll Recall);
+/// four are daily games that live on their creators' websites.
+enum Game: String, Equatable, CaseIterable {
+    case wordHunt = "w"      // trace words on today's letter grid, 30 s
+    case flagMatch = "f"     // today's 5 flags, 60 s
+    case captionMeme = "c"   // caption today's meme; friends answer with theirs
+    case reels = "r"         // Scroll Recall: watch 8 NASA reels, then 5 questions
+    case krillion = "k"      // krillion.io: daily rare-answer dive
+    case magnitudle = "m"    // magnitudle.com/daily: one estimate a day, scored /100
+    case hundredOfUs = "h"   // logicers.com/100-of-us: "of 100 people, how many…?"
+    case eraly = "e"         // eraly.io: guess the year of 7 moments, up to 700
 
-    var isChallenge: Bool { challengerScore != nil }
+    /// Our own games, in menu order.
+    static let own: [Game] = [.wordHunt, .flagMatch, .captionMeme, .reels]
+    /// The daily games that live on other people's websites.
+    static let web: [Game] = [.krillion, .magnitudle, .hundredOfUs, .eraly]
 
-    var board: GameBoard { GameBoard.from(letters: letters) }
+    /// Played on its creator's site rather than inside Sammy Word.
+    var isWeb: Bool { Game.web.contains(self) }
+
+    /// Has one puzzle a day.
+    var isDaily: Bool { true }
+
+    var title: String {
+        switch self {
+        case .wordHunt: return "Word Hunt"
+        case .flagMatch: return "Flag Match"
+        case .captionMeme: return "Caption the Meme"
+        case .reels: return "Scroll Recall"
+        case .krillion: return "Krillion"
+        case .magnitudle: return "Magnitudle"
+        case .hundredOfUs: return "100 of Us"
+        case .eraly: return "Eraly"
+        }
+    }
+
+    var emoji: String {
+        switch self {
+        case .wordHunt: return "🔤"
+        case .flagMatch: return "🚩"
+        case .captionMeme: return "🖼️"
+        case .reels: return "📱"
+        case .krillion: return "🦐"
+        case .magnitudle: return "🧮"
+        case .hundredOfUs: return "🌍"
+        case .eraly: return "⏳"
+        }
+    }
+
+    /// One line for the game menu.
+    var blurb: String {
+        switch self {
+        case .wordHunt: return "Today's letter grid: drag to spell as many words as you can in 30 seconds"
+        case .flagMatch: return "Today's 5 flags: name each country before the minute runs out"
+        case .captionMeme: return "Today's meme, the same for everyone: write the funniest caption"
+        case .reels: return "Scroll today's 8 space reels, then see how much you remember"
+        case .krillion: return "Today's dive: the rarer your answers, the bigger the score"
+        case .magnitudle: return "One mind-bending number a day. Guess it, scored out of 100"
+        case .hundredOfUs: return "Of 100 people in the world, how many…? Get closest"
+        case .eraly: return "Seven moments from history: guess the year of each, up to 700"
+        }
+    }
+
+    var invite: String {
+        switch self {
+        case .wordHunt: return "Hunt today's words with me"
+        case .flagMatch: return "Name today's flags with me"
+        case .captionMeme: return "Caption today's meme with me"
+        case .reels: return "Scroll today's reels with me"
+        case .krillion: return "Dive into today's Krillion with me"
+        case .magnitudle: return "Try today's Magnitudle question"
+        case .hundredOfUs: return "Guess today's 100 of Us with me"
+        case .eraly: return "Time-travel through today's Eraly with me"
+        }
+    }
+
+    /// Where a web game lives.
+    var site: URL? {
+        switch self {
+        case .krillion: return URL(string: "https://krillion.io/")
+        case .magnitudle: return URL(string: "https://magnitudle.com/daily")
+        case .hundredOfUs: return URL(string: "https://logicers.com/100-of-us/")
+        case .eraly: return URL(string: "https://eraly.io/")
+        default: return nil
+        }
+    }
+
+    /// Web games whose creators said yes to being played in Sammy Word, ads
+    /// and all (Magnitudle, 100 of Us). Apple doesn't allow ads inside an
+    /// iMessage extension, so they play in the Sammy Word app, which then
+    /// offers to send the score to a chat. The rest open on their own sites.
+    var playsInApp: Bool { self == .magnitudle || self == .hundredOfUs }
+
+    /// Opens this game in the Sammy Word app: sammyword://play/<letter>.
+    var appLink: URL { URL(string: "sammyword://play/\(rawValue)")! }
+
+    /// The game an app link points at, if any.
+    static func from(appLink url: URL) -> Game? {
+        guard url.scheme == "sammyword", url.host == "play" else { return nil }
+        return Game(rawValue: url.lastPathComponent).flatMap { $0.playsInApp ? $0 : nil }
+    }
+
+    /// The most a round can score, when there's a ceiling.
+    var maxScore: Int? {
+        switch self {
+        case .flagMatch: return Flags.questions
+        case .reels: return 5
+        case .magnitudle: return 100
+        case .eraly: return 700
+        case .hundredOfUs: return 100
+        default: return nil
+        }
+    }
+}
+
+/// A result (or an invite, when `score` is nil) traded in chat.
+///
+/// `score` is each game's headline number: Word Hunt points, Flag Match flags
+/// right out of 5, Krillion points,
+/// Magnitudle points out of 100, Eraly points out of 700, and for 100 of Us how
+/// far off the guess was (lower wins). Caption the Meme has no score: the
+/// caption itself (`captionText`) is the result.
+struct ScorePayload: Equatable {
+    var game: Game
+    var score: Int?
+    var day: Int?             // puzzle number (ours: Sammy Word day; web: the site's own)
+    var marks: [String] = []  // detail: Word Hunt best words; Krillion tiers; 100 of Us [guess, answer]; Eraly rounds
+    var senderName: String?
+    var captionText: String?  // Caption the Meme: the caption written for day `day`
+
+    /// "1400", "4/5", "92/100", "off by 8", "captioned".
+    var scoreText: String {
+        guard let score else { return "" }
+        switch game {
+        case .wordHunt, .krillion: return String(score)
+        case .captionMeme: return "captioned"
+        case .reels: return "\(score)/5"
+        case .flagMatch: return "\(score)/\(Flags.questions)"
+        case .magnitudle: return "\(score)/100"
+        case .hundredOfUs: return score == 0 ? "spot on" : "off by \(score)"
+        case .eraly: return "\(score)/700"
+        }
+    }
+
+    /// "scored 92/100" / "was off by 8" / "captioned today's meme".
+    var brag: String {
+        switch game {
+        case .hundredOfUs: return score == 0 ? "nailed it" : "was \(scoreText)"
+        case .captionMeme: return "captioned today's meme"
+        case .flagMatch: return "named \(scoreText) flags"
+        case .reels: return "remembered \(scoreText)"
+        default: return "scored \(scoreText)"
+        }
+    }
+
+    /// Bubble caption.
+    var caption: String {
+        let who = senderName ?? "I"
+        if game == .captionMeme {
+            guard let text = captionText else { return game.invite }
+            return "\(who) captioned today's meme: \u{201C}\(text)\u{201D} Your turn"
+        }
+        guard score != nil else { return game.invite }
+        return "\(who) \(brag) on \(game.title)\(day.map { " #\($0)" } ?? "") — your turn"
+    }
 }
 
 enum GameMessage {
-    /// Query keys: b = board (tiles joined by "-"), cs = challenger score,
-    /// cn = challenger name.
-    static func encode(_ payload: GamePayload) -> URL {
+    /// Query keys: g = game letter, ks = score, kd = puzzle number,
+    /// kr = detail ("."-joined), cn = sender name,
+    /// ct = Caption the Meme caption.
+    static func encode(_ payload: ScorePayload) -> URL {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "sammyword.app"
         components.path = "/play"
-        var items = [URLQueryItem(name: "b", value: payload.letters.joined(separator: "-"))]
-        if let score = payload.challengerScore {
-            items.append(URLQueryItem(name: "cs", value: String(score)))
+        var items = [URLQueryItem(name: "g", value: payload.game.rawValue)]
+        if let score = payload.score { items.append(URLQueryItem(name: "ks", value: String(score))) }
+        if let day = payload.day { items.append(URLQueryItem(name: "kd", value: String(day))) }
+        if !payload.marks.isEmpty {
+            items.append(URLQueryItem(name: "kr", value: payload.marks.joined(separator: ".")))
         }
-        if let name = payload.challengerName, !name.isEmpty {
+        if let name = payload.senderName, !name.isEmpty {
             items.append(URLQueryItem(name: "cn", value: name))
         }
+        if let text = payload.captionText { items.append(URLQueryItem(name: "ct", value: text)) }
         components.queryItems = items
-        // Fall back to a minimal URL if components somehow fails to compose.
         return components.url ?? URL(string: "https://sammyword.app/play")!
     }
 
-    static func decode(_ url: URL?) -> GamePayload? {
+    /// Unknown or older bubbles decode to nil, which simply opens the app fresh.
+    static func decode(_ url: URL?) -> ScorePayload? {
         guard let url,
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let items = components.queryItems
         else { return nil }
-
-        func value(_ name: String) -> String? {
-            items.first(where: { $0.name == name })?.value
-        }
-
-        guard let boardString = value("b") else { return nil }
-        let letters = boardString
-            .split(separator: "-", omittingEmptySubsequences: false)
-            .map { $0.uppercased() }
-        guard letters.count == GameBoard.cellCount else { return nil }
-
-        let score = value("cs").flatMap { Int($0) }
-        let name = value("cn")
-        return GamePayload(letters: letters, challengerScore: score, challengerName: name)
+        func value(_ name: String) -> String? { items.first(where: { $0.name == name })?.value }
+        guard let game = value("g").flatMap(Game.init(rawValue:)) else { return nil }
+        return ScorePayload(
+            game: game,
+            score: value("ks").flatMap { Int($0) },
+            day: value("kd").flatMap { Int($0) },
+            marks: value("kr")?.split(separator: ".").map(String.init) ?? [],
+            senderName: value("cn"),
+            captionText: value("ct").map(Caption.clean).flatMap { $0.isEmpty ? nil : $0 }
+        )
     }
 }

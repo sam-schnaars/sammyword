@@ -11,7 +11,7 @@ in the rounded **Fredoka** font.
 - Press **New Game**, then drag across the 4×4 grid to connect neighboring
   letters (horizontal, vertical, and diagonal).
 - Words must be 3+ letters and in the dictionary. Longer words score more.
-- You get 80 seconds per round.
+- You get 30 seconds per round.
 
 ## Challenge a friend
 
@@ -25,6 +25,31 @@ They can **Challenge them back** on the same board to keep it going.
 
 The link only works where the app is hosted — for friends to play it must be
 deployed (e.g. Vercel), not just running on `localhost`.
+
+## Deep Cut
+
+A rare-answer trivia mode. Each round is 5 prompts ("Name a US state", "Name a
+noble gas"…), 20 seconds each. Type any correct answer; the more obscure it is,
+the more it scores (Common 100 → Solid 250 → Rare 500 → Deep cut! 1000). An
+answer not on the list can be retried; one typo is forgiven on longer answers.
+
+The prompt bank is `src/deepcut.json` — each answer is `"Name|alias:tier"`. The
+iOS copy at `ios/SammyWordMessages/Resources/deepcut.json` must stay
+byte-identical (`cp src/deepcut.json ios/SammyWordMessages/Resources/`).
+
+Challenges carry the round seed, score, and the sender's answers, so the friend
+plays the same prompts and the results show both answers side by side.
+
+## Scroll Recall
+
+A daily set of 8 short reels: real public-domain NASA footage (loaded from
+NASA's video library) with a silly caption and a fact on top. Each reel plays
+about 8 seconds and moves on by itself unless you swipe up first; there's no
+going back. Then 5 questions mixing what you saw, the captions and the facts.
+Three sets rotate by day (`src/reels.json`, copied byte-for-byte to
+`ios/SammyWordMessages/Resources/reels.json`); each reel is a clip URL, a start
+time, a caption and a fact, and each question lists its right answer first
+(the app shuffles the choices).
 
 ## Map shapes & Map of the Day
 
@@ -60,6 +85,47 @@ This is the only manual step — it needs your account and injects env vars:
 No leaderboard locally: `vite dev` doesn't run the serverless function, so the
 panel stays hidden in dev — test it on the Vercel deployment.
 
+## Daily Sammy (prototype)
+
+A standalone page at `/mobile/daily/` (samarei.com/mobile/daily/ through the
+proxy). One prompt a day ("Name a bird"); name 3 answers, and the fewer
+players who'd say an answer, the more it scores:
+`points = max(5, round(25 × log2(100 ÷ share%)))`. A wrong answer costs one of
+3 lives. Below the game is a **Community games** section (`src/daily/community.js`);
+Magnitudle's card carries a labelled 300×250 ad slot, as their condition for
+being featured. Seed prompts and answer shares are in `src/daily/days.js`
+(day 1 = 2026-11-24 UTC); `?day=N` plays another day.
+
+## Caption the Meme board (iOS game, server here)
+
+The iOS game Caption the Meme gives everyone the same famous meme template
+each day (26 single-caption templates in `api/_memes.js`, rotating by day
+number, loaded by the app from Imgflip's image CDN; edit the list to change
+the rotation without an app update). It keeps today's captions and votes on a
+shared board: `api/captions.js`, a Vercel function using the same Upstash Redis as the
+leaderboard. Each device sends a random id (no accounts). You submit one
+caption a day (name optional, "Anonymous" when blank); only then do you see
+everyone else's, and you get one vote, never for your own.
+
+Protection: 80-character captions and 20-character names, a word filter for
+slurs, sexual terms and self-harm harassment; swearing is allowed
+(`api/_blocklist.js`, extend with the `CAPTIONS_BLOCKLIST` env var), rate limits
+per device and per IP, writes only for today's meme, and a report button
+(3 reports hide a caption; the author still sees it). Reporting also hides that
+person's captions on the reporter's phone.
+
+Moderation needs a `CAPTIONS_ADMIN_TOKEN` env var on the Vercel project:
+
+```bash
+# List day 9's captions, most-reported first
+curl -H "Authorization: Bearer $CAPTIONS_ADMIN_TOKEN" "https://sammyword.vercel.app/api/captions?day=9&admin=1"
+# Hide, unhide or delete one
+curl -X POST -H "Authorization: Bearer $CAPTIONS_ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"action":"delete","day":9,"id":"<caption id>"}' https://sammyword.vercel.app/api/captions
+```
+
+Data expires after 14 days. Run `node scripts/test-captions.mjs` to check the rules locally (no Redis needed).
+
 ## Run it
 
 ```bash
@@ -73,6 +139,7 @@ npm run build    # production build to dist/
 - `src/App.jsx` — game UI, drag selection, timer, scoring, screens.
 - `src/board.js` — board generation (Boggle dice), adjacency, score table.
 - `src/share.js` — encode/decode a challenge (board + score + name) to/from a URL.
+- `src/deepcut.js` / `src/DeepCut.jsx` / `src/deepcut.json` — Deep Cut logic, UI, and prompt bank.
 - `src/App.css` / `src/index.css` — Game Pigeon styling.
 - `public/words.txt` — dictionary for word validation (filtered system word list),
   fetched at runtime.

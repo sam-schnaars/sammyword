@@ -1,0 +1,292 @@
+/* ===== Pixel-art theme =====
+   Layered over App.css so the web app wears the same 8-bit dusk look as the
+   iMessage app: a banded night sky, square corners, bevelled boxes with hard
+   drop shadows, a pixel display font for headings and buttons, and a
+   monospace body. Colors match ios/SammyWordMessages/PixelArt.swift. */
+
+:root {
+  --px-ink: #0a0818;
+  --px-cream: #f6eedc;
+  --px-muted: #a59cd6;
+  --px-gold: #ffc94a;
+  --px-gold-dark: #8a4b12;
+  --px-green: #7be89a;
+  --px-panel: #241e4a;
+  --px-panel-light: #3d3478;
+  --px-panel-dark: #171236;
+  --px-row: #1c173b;
+  --px-row-light: #302a62;
+  --px-row-dark: #120e2a;
+  --px-button: #3fbf6f;
+  --px-button-light: #86efa6;
+  --px-button-dark: #1f7f45;
+
+  /* Remap the old neon palette onto the pixel one. */
+  --neon-pink: var(--px-gold);
+  --neon-pink-deep: var(--px-gold-dark);
+  --neon-pink-soft: var(--px-gold);
+  --neon-green: var(--px-green);
+  --neon-green-deep: var(--px-button-dark);
+  --neon-green-soft: var(--px-green);
+  --board-panel: var(--px-panel);
+  --board-rim: var(--px-panel-light);
+  --board-rim-dark: var(--px-panel-dark);
+  --tile-base: #4a4870;
+  --tile-text: var(--px-cream);
+  --tile-selected: #7ab8f5;
+  --path-red: var(--px-gold);
+  --start-green: var(--px-button);
+  --start-green-dark: var(--px-button-dark);
+  --header-text: var(--px-cream);
+  --surface: var(--px-row);
+  --surface-2: var(--px-panel);
+  --line: var(--px-row-light);
+
+  font-family: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--px-cream);
+}
+
+/* Square everything and drop the neon glows. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+  text-shadow: none !important;
+}
+
+body {
+  background-color: #0b0a1f;
+  /* Hard-banded dusk with a scatter of square stars. */
+  background-image:
+    radial-gradient(#c9cfff 1.5px, transparent 1.6px),
+    radial-gradient(#6d68a8 1.5px, transparent 1.6px),
+    linear-gradient(180deg,
+      #0b0a1f 0 16%, #100e2a 16% 32%, #161335 32% 48%,
+      #1e1842 48% 64%, #281e4f 64% 82%, #34245a 82% 100%);
+  background-size: 170px 210px, 110px 130px, 100% 100%;
+  background-position: 13px 17px, 61px 43px, 0 0;
+  background-attachment: fixed;
+  image-rendering: pixelated;
+}
+
+button,
+input {
+  font-family: 'Space Mono', ui-monospace, monospace;
+}
+
+/* Headings, numbers and buttons in the pixel display font. */
+.graffiti,
+.modal-title,
+.mode-tile-title,
+.mode-name,
+.final-score,
+.score,
+.quiz-score,
+.vs-score,
+.btn-start,
+.btn-share,
+.btn-back,
+.timer-pill,
+.word-bubble,
+.tile,
+.lb-head,
+.mode-head,
+.dc-prompt,
+.outcome {
+  font-family: 'Silkscreen', 'Space Mono', monospace !important;
+  letter-spacing: 1px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Silkscreen', 'Space Mono', monospace !important;
+  letter-spacing: 1px !important;
+}
+
+h1 {
+  background: none !important;
+  -webkit-text-fill-color: var(--px-gold) !important;
+  color: var(--px-gold) !important;
+  -webkit-text-stroke: 0 !important;
+  filter: drop-shadow(3px 3px 0 var(--px-gold-dark)) !important;
+}
+
+.mode-tile-title {
+  letter-spacing: 0 !important;
+}
+
+.graffiti {
+  background: none;
+  -webkit-text-fill-color: var(--px-gold);
+  color: var(--px-gold);
+  -webkit-text-stroke: 0;
+  filter: drop-shadow(3px 3px 0 var(--px-gold-dark));
+}
+
+/* Bevelled boxes: light top-left edge, dark bottom-right, hard shadow. */
+.card,
+.header-card,
+.modal,
+.mode-tile,
+.daily-card,
+.lb,
+.vs-col,
+.duel-col,
+.quiz-choice,
+.goal,
+.timer-pill,
+.found-chip,
+.dc-chip,
+.mini-board {
+  background: var(--px-row) !important;
+  border: 3px solid var(--px-ink) !important;
+  box-shadow:
+    inset 3px 3px 0 var(--px-row-light),
+    inset -3px -3px 0 var(--px-row-dark),
+    4px 4px 0 rgba(0, 0, 0, 0.55) !important;
+}
+
+.header-card {
+  border-bottom: 3px solid var(--px-ink) !important;
+}
+
+.daily-card.sel,
+.mode-opt.sel,
+.vs-col.winner,
+.duel-col.winner,
+.card.featured {
+  background: var(--px-panel) !important;
+  box-shadow:
+    inset 3px 3px 0 var(--px-gold),
+    inset -3px -3px 0 #b5762a,
+    4px 4px 0 rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Chunky green buttons that sink when pressed. */
+.btn-start,
+.btn-share {
+  background: var(--px-button) !important;
+  color: var(--px-cream) !important;
+  border: 3px solid var(--px-ink) !important;
+  box-shadow:
+    inset 3px 3px 0 var(--px-button-light),
+    inset -3px -3px 0 var(--px-button-dark),
+    4px 4px 0 rgba(0, 0, 0, 0.55) !important;
+  transform: none;
+}
+
+.btn-start:active,
+.btn-share:active,
+.quiz-choice:active,
+.mode-tile:active {
+  transform: translate(3px, 3px) !important;
+  box-shadow:
+    inset 3px 3px 0 var(--px-button-light),
+    inset -3px -3px 0 var(--px-button-dark) !important;
+}
+
+.btn-back,
+.btn-link,
+.end-btn {
+  background: var(--px-row) !important;
+  color: var(--px-muted) !important;
+  border: 3px solid var(--px-ink) !important;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55) !important;
+}
+
+/* The Word Hunt board and tiles. */
+.tile-grid {
+  background: var(--px-panel) !important;
+  border: 4px solid var(--px-ink) !important;
+  box-shadow:
+    inset 4px 4px 0 var(--px-panel-light),
+    inset -4px -4px 0 var(--px-panel-dark),
+    5px 5px 0 rgba(0, 0, 0, 0.55) !important;
+}
+
+/* The letters are drawn on a see-through layer above the tiles. */
+.glyph-grid {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.glyph-grid,
+.glyph-grid * {
+  font-family: 'Silkscreen', 'Space Mono', monospace !important;
+  color: var(--px-cream);
+}
+
+.board-frame {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.tile {
+  background: #4a4870 !important;
+  color: var(--px-cream) !important;
+  border: 3px solid var(--px-ink) !important;
+  box-shadow:
+    inset 3px 3px 0 #77749e,
+    inset -3px -3px 0 #2a2848 !important;
+}
+
+.tile.selected {
+  background: #7ab8f5 !important;
+  color: var(--px-ink) !important;
+  box-shadow:
+    inset 3px 3px 0 #c6e2ff,
+    inset -3px -3px 0 #3c6fa8 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+.path-seg {
+  stroke: var(--px-gold) !important;
+  stroke-linecap: square !important;
+  filter: none !important;
+}
+
+.word-bubble {
+  background: var(--px-row) !important;
+  border: 3px solid var(--px-ink) !important;
+  color: var(--px-cream) !important;
+}
+.word-bubble.valid { color: var(--px-green) !important; }
+.word-bubble.dupe { color: var(--px-gold) !important; }
+
+.timer-pill.low,
+.quiz-choice.wrong {
+  background: #3a1424 !important;
+  color: #ff6b6b !important;
+  box-shadow:
+    inset 3px 3px 0 #8a2030,
+    inset -3px -3px 0 #200a12 !important;
+}
+
+.quiz-choice.correct,
+.goal.done {
+  background: #2e9e5b !important;
+  color: var(--px-cream) !important;
+  box-shadow:
+    inset 3px 3px 0 #7be89a,
+    inset -3px -3px 0 #16603a !important;
+}
+
+.name-input,
+.dc-input {
+  background: var(--px-row) !important;
+  color: var(--px-cream) !important;
+  border: 3px solid var(--px-ink) !important;
+  box-shadow: inset 3px 3px 0 var(--px-row-dark) !important;
+}
+
+.muted-note,
+.lb-note,
+.mode-tile-text,
+.mode-tile-sub,
+.modal-sub,
+.share-msg {
+  color: var(--px-muted) !important;
+}
